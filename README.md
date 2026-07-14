@@ -10,6 +10,10 @@ While these components work together and can be deployed and configured differen
 aims to collect different Docker and Docker Compose files, Kubernetes configurations and Helm charts,
 as well as automatic configuration scripts to help participants get onboarded.
 
+## Getting Started
+If you want to get started, review the [local testbed in `docker/local-testbed`](docker/local-testbed)
+which starts a minimal data space with two participants and all necessary components on your machine.
+
 ## Repository Structure
 The repository is organized by artifact type. Each folder contains its own `README.md` with more
 details.
