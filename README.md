@@ -1,35 +1,33 @@
-# Construct-X Template Repository
+# Construct-X Script Collection
 
-Template repository for Construct-X.
+A collection of scripts to easily configure and run Construct-X data space components with Docker
+or Kubernetes.
 
 ## About
-Use this template during repository creation to include relevant files and a default configuration. For your project, please add a description with additional details about your project here.
+The Construct-X data space requires participants to use various components (like a Connector, a
+wallet, etc.), located in different repositories in the [Construct-X GitHub Organization](https://github.com/project-construct-x/).
+While these components work together and can be deployed and configured differently, this repository
+aims to collect different Docker and Docker Compose files, Kubernetes configurations and Helm charts,
+as well as automatic configuration scripts to help participants get onboarded.
+
+## Repository Structure
+The repository is organized by artifact type. Each folder contains its own `README.md` with more
+details.
+
+```
+.
+├── docker/                 # Docker Compose deployments
+│   ├── single-node/        # One Connector + one Wallet (minimal setup)
+│   └── local-testbed/      # Two Connectors + wallets for end-to-end testing
+├── helm/                   # Kubernetes Helm charts
+│   └── single-node/        # Umbrella chart: one Connector + one Wallet
+├── bruno/                  # Bruno HTTP collections
+│   └── local-testbed/      # Collection for the local testbed
+└── configurator/           # Python script to start & configure a node
+```
 
 ## Documentation
-This documentation is located in the `/docs` folder.
-
-## Getting Started
-Relevant prerequisites and installation instructions are introduced.
-
-### Prerequisites
-To run and work with this project, the following prerequisites are needed:
-- Tool 1
-- Tool 2
-
-### Installation
-To run this project, execute the following steps:
-1. Clone this repository
-   ```sh
-   git clone https://github.com/Projekt-Construct-X/XXX.git
-   ```
-2. Do this
-   ```sh
-   cd XXX
-   ```
-3. Do that
-   ```sh
-   docker compose up
-   ```
+This documentation is located in different READMEs in the dedicated folders.
 
 ## License
 All code files are distributed under the Apache 2.0 license. See [LICENSE](./LICENSE) for more information.
