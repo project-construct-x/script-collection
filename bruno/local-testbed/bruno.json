@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "con-x-local-testbed",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
