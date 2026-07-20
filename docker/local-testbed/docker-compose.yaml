@@ -21,13 +21,18 @@
 services:
   local-issuer-wallet:
     container_name: local-issuer-wallet
-    image: ghcr.io/project-construct-x/wallet:0.17.0-1
+    image: ghcr.io/project-construct-x/wallet:0.18.0-1
     pull_policy: missing
     depends_on:
       shared-postgres:
         condition: service_healthy
       vault-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider http://localhost || exit 1" ]
+      start_period: 10s
+      interval: 3s
+      retries: 30
     ports:
       - "1044:1044"       # debugger
       - "10000:80"        # did API           -> /
@@ -121,13 +126,18 @@ services:
 
   consumer-wallet:
     container_name: consumer-wallet
-    image: ghcr.io/project-construct-x/wallet:0.17.0-1
+    image: ghcr.io/project-construct-x/wallet:0.18.0-1
     pull_policy: missing
     depends_on:
       shared-postgres:
         condition: service_healthy
       vault-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider http://localhost || exit 1" ]
+      start_period: 10s
+      interval: 3s
+      retries: 30
     ports:
       - "1045:1045"         # debugger
       - "20000:80"          # did API           -> /
@@ -162,13 +172,18 @@ services:
 
   provider-wallet:
     container_name: provider-wallet
-    image: ghcr.io/project-construct-x/wallet:0.17.0-1
+    image: ghcr.io/project-construct-x/wallet:0.18.0-1
     pull_policy: missing
     depends_on:
       shared-postgres:
         condition: service_healthy
       vault-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider http://localhost || exit 1" ]
+      start_period: 10s
+      interval: 3s
+      retries: 30
     ports:
       - "1046:1045"         # debugger
       - "21000:80"          # did API           -> /
