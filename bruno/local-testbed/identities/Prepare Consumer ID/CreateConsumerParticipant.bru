@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{CONSUMER_IDHUB_ID_API}}/v1alpha/participants
+  url: {{CONSUMER_IDHUB_ID_API}}/v1beta/participants
   body: json
   auth: inherit
 }
@@ -26,7 +26,7 @@ body:json {
       {
         "id": "ConsumerIssuerService-ID",
         "type": "IssuerService",
-        "serviceEndpoint": "http://consumer-wallet:13132/api/issuance/v1alpha/participants/{{CONS_PART_CONT}}"
+        "serviceEndpoint": "http://consumer-wallet:13132/api/issuance/v1beta/participants/{{CONS_PART_CONT}}"
       }
     ],
     "active": true,
