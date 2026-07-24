@@ -1,0 +1,291 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
+name: ${STACK_NAME}
+
+services:
+  traefik:
+    image: traefik:3.7
+    restart: unless-stopped
+    command:
+      - --api.dashboard=false
+      - --ping=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${STACK_NAME}-network
+      - --entrypoints.web.address=:80
+      #- --entrypoints.web.http.redirections.entrypoint.to=websecure
+      #- --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=${TLS_ENABLED:-true} # global TLS config for websecure entrypoint
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-unused@example.invalid}
+      - --certificatesresolvers.letsencrypt.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --accesslog=true
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${TRAEFIK_BIND_ADDRESS:-0.0.0.0}:${TRAEFIK_HTTP_PORT:-80}:80"
+      - "${TRAEFIK_BIND_ADDRESS:-0.0.0.0}:${TRAEFIK_HTTPS_PORT:-443}:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/.letsencrypt:/letsencrypt
+    networks:
+      edc-network:
+
+  postgres:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -h 127.0.0.1 || exit 1" ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/pg-init.sql:/docker-entrypoint-initdb.d/pg-init.sql:ro
+    networks:
+      - edc-network
+
+  edc-vault:
+    image: vault:1.13.3
+    restart: unless-stopped
+    command: server -dev -dev-root-token-id=${VAULT_TOKEN:?set VAULT_TOKEN in .env} -dev-listen-address=0.0.0.0:8200
+    environment:
+      SKIP_SETCAP: "true"
+      SKIP_CHOWN: "true"
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "VAULT_ADDR=http://127.0.0.1:8200 vault status >/dev/null 2>&1" ]
+      interval: 4s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "127.0.0.1:${VAULT_PORT:-28200}:8200"
+    networks:
+      - edc-network
+
+  vault-init:
+    image: alpine:3.19
+    depends_on:
+      edc-vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://edc-vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+      DP_KEY_PREFIX: dataplane
+      WALLET_AES_ALIAS: participant-wallet-aes-key-alias
+    volumes:
+      - ./docker/vault-init.sh:/scripts/init.sh:ro
+    entrypoint:
+      - sh
+      - -c
+      - apk add --no-cache curl jq openssl && tr -d '\r' < /scripts/init.sh > /tmp/init.sh && sh /tmp/init.sh
+    restart: "no"
+    networks:
+      - edc-network
+
+  local-webserver:
+    image: nginx:alpine
+    volumes:
+      - ./share:/usr/share/nginx/html/:ro
+    restart: unless-stopped
+    networks:
+      - edc-network
+
+
+  edc-wallet:
+    image: ${WALLET_IMAGE:-ghcr.io/project-construct-x/wallet:0.17.0-1}
+    pull_policy: missing
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    environment:
+      EDC_HOSTNAME: edc-wallet
+      EDC_IAM_DID_WEB_USE_HTTPS: ${WALLET_DID_USE_HTTPS:-true}
+      EDC_ISSUER_ISSUANCE_SEND_RETRY_LIMIT: 0
+      EDC_IAM_CREDENTIAL_RENEWAL_GRACEPERIOD: 172800
+      EDC_IH_API_SUPERUSER_ID: admin
+      EDC_IH_API_KEY_SUPERUSER: ${WALLET_SUPERUSER_KEY:?set WALLET_SUPERUSER_KEY in .env}
+      EDC_ISSUER_STATUSLIST_SIGNING_KEY_ALIAS: status-list-key
+      EDC_ENCRYPTION_AES_KEY_ALIAS: participant-wallet-aes-key-alias
+      EDC_IAM_KEY_ALGORITHM: RSA
+      EDC_IH_API_SUPERUSER_PUBLIC_KEY_ALIAS: participant-wallet-admin#pubkey
+      EDC_IH_API_SUPERUSER_PRIVATE_KEY_ALIAS: participant-wallet-admin#privkey
+      WEB_HTTP_DID_PORT: 80
+      EDC_SQL_SCHEMA_AUTOCREATE: "true"
+      EDC_DATASOURCE_DEFAULT_URL: jdbc:postgresql://postgres:5432/participant_wallet
+      EDC_DATASOURCE_DEFAULT_USER: ${POSTGRES_USER:-admin}
+      EDC_DATASOURCE_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      EDC_VAULT_HASHICORP_URL: http://edc-vault:8200
+      EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: "true"
+      EDC_VAULT_HASHICORP_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+    ports:
+      - "127.0.0.1:${WALLET_DID_PORT:-20000}:80"
+      - "127.0.0.1:${WALLET_IDENTITY_PORT:-20100}:15151"
+      - "127.0.0.1:${WALLET_CREDENTIALS_PORT:-20600}:13131"
+      - "127.0.0.1:${WALLET_ISSUANCE_PORT:-20700}:13132"
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.wallet-did.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && (Path(`/${PARTICIPANT_CONTEXT_ID:?set PARTICIPANT_CONTEXT_ID in .env}`) || PathPrefix(`/${PARTICIPANT_CONTEXT_ID:?set PARTICIPANT_CONTEXT_ID in .env}/`))"
+      - traefik.http.routers.wallet-did.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.wallet-did.service=wallet-did
+      - traefik.http.services.wallet-did.loadbalancer.server.port=80
+      - "traefik.http.routers.wallet-credentials.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && PathPrefix(`/api/credentials`)"
+      - traefik.http.routers.wallet-credentials.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.wallet-credentials.service=wallet-credentials
+      - traefik.http.services.wallet-credentials.loadbalancer.server.port=13131
+      - "traefik.http.routers.wallet-issuance.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && PathPrefix(`/api/issuance`)"
+      - traefik.http.routers.wallet-issuance.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.wallet-issuance.service=wallet-issuance
+      - traefik.http.services.wallet-issuance.loadbalancer.server.port=13132
+    networks:
+      - edc-network
+
+  controlplane:
+    image: ${CONTROLPLANE_IMAGE:-con-x-controlplane-postgresql-hashicorp-vault:latest}
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+      edc-wallet:
+        condition: service_started
+    environment:
+      tx.edc.postgresql.migration.asset.enabled: "false"
+      tx.edc.postgresql.migration.agreementbpns.enabled: "false"
+      tx.edc.postgresql.migration.bpn.enabled: "false"
+      tx.edc.postgresql.migration.contractdefinition.enabled: "false"
+      tx.edc.postgresql.migration.contractnegotiation.enabled: "false"
+      tx.edc.postgresql.migration.dataplaneinstance.enabled: "false"
+      tx.edc.postgresql.migration.edr.enabled: "false"
+      tx.edc.postgresql.migration.federatedcatalog.enabled: "false"
+      tx.edc.postgresql.migration.jti-validation.enabled: "false"
+      tx.edc.postgresql.migration.policy-monitor.enabled: "false"
+      tx.edc.postgresql.migration.policy.enabled: "false"
+      tx.edc.postgresql.migration.transferprocess.enabled: "false"
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
+      edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
+      edc.iam.credential.revocation.mimetype: application/json
+      edc.iam.sts.oauth.token.url: http://edc-wallet:9292/api/sts/token
+      edc.iam.sts.oauth.client.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.iam.issuer.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.participant.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.hostname: controlplane
+      edc.dsp.callback.address: ${PARTICIPANT_DSP_CALLBACK_ADDRESS:-https://${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}/dsp}
+      web.http.port: 9000
+      web.http.path: /api
+      web.http.management.port: 9010
+      web.http.management.path: /management
+      web.http.management.auth.key: ${CONNECTOR_MANAGEMENT_API_KEY:?set CONNECTOR_MANAGEMENT_API_KEY in .env}
+      web.http.management.auth.type: tokenbased
+      web.http.protocol.port: 9020
+      web.http.protocol.path: /dsp
+      web.http.validation.port: 9030
+      web.http.validation.path: /validation
+      web.http.control.port: 9050
+      web.http.control.path: /control
+      edc.sql.schema.autocreate: "true"
+      edc.datasource.default.url: jdbc:postgresql://postgres:5432/connector_controlplane
+      edc.datasource.default.user: ${POSTGRES_USER:-admin}
+      edc.datasource.default.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      edc.vault.hashicorp.url: http://edc-vault:8200
+      edc.vault.hashicorp.health.check.enabled: "true"
+      edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+      tx.edc.iam.iatp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
+      tx.edc.iam.iatp.default-scopes.membership.type: MembershipCredential
+      tx.edc.iam.iatp.default-scopes.membership.operation: read
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
+      start_period: 15s
+      interval: 3s
+      retries: 40
+    entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
+    ports:
+      - "127.0.0.1:${CONNECTOR_MANAGEMENT_PORT:-29110}:9010"
+      - "127.0.0.1:${DSP_PORT:-29220}:9020"
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.connector-dsp.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && PathPrefix(`/dsp`)"
+      - traefik.http.routers.connector-dsp.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.connector-dsp.service=connector-dsp
+      - traefik.http.services.connector-dsp.loadbalancer.server.port=9020
+      - "traefik.http.routers.connector-mgmt.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && PathPrefix(`/management`)"
+      - traefik.http.routers.connector-mgmt.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.connector-mgmt.service=connector-mgmt
+      - traefik.http.services.connector-mgmt.loadbalancer.server.port=9010
+    networks:
+      - edc-network
+
+  dataplane:
+    image: ${DATAPLANE_IMAGE:-con-x-dataplane-postgresql-hashicorp-vault:latest}
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      controlplane:
+        condition: service_healthy
+    environment:
+      web.http.public.port: 9500
+      web.http.public.path: /public
+      edc.dataplane.api.public.baseurl: ${PARTICIPANT_DATAPLANE_PUBLIC_URL:-https://${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}/public}
+      web.http.management.port: 9510
+      web.http.management.path: /management
+      web.http.control.port: 9550
+      web.http.control.path: /control
+      edc.hostname: dataplane
+      edc.dpf.selector.url: http://controlplane:9050/control/v1/dataplanes
+      edc.data.plane.self.unregistration: "true"
+      edc.datasource.default.url: jdbc:postgresql://postgres:5432/connector_dataplane
+      edc.datasource.default.user: ${POSTGRES_USER:-admin}
+      edc.datasource.default.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      edc.sql.schema.autocreate: "true"
+      edc.transfer.proxy.token.signer.privatekey.alias: dataplane_priv
+      edc.transfer.proxy.token.verifier.publickey.alias: dataplane_pub
+      edc.vault.hashicorp.url: http://edc-vault:8200
+      edc.vault.hashicorp.health.check.enabled: "true"
+      edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
+      edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
+      edc.iam.credential.revocation.mimetype: application/json
+      edc.iam.sts.oauth.token.url: http://edc-wallet:9292/api/sts/token
+      edc.iam.sts.oauth.client.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.iam.issuer.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+    entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
+    ports:
+      - "127.0.0.1:${DATAPLANE_PORT:-29600}:9500"
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.connector-public.rule=Host(`${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}`) && PathPrefix(`/public`)"
+      - traefik.http.routers.connector-public.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.connector-public.service=connector-public
+      - traefik.http.services.connector-public.loadbalancer.server.port=9500
+    networks:
+      - edc-network
+
+volumes:
+  postgres_data:
+
+networks:
+  edc-network:
+    name: ${STACK_NAME}-network
+    driver: bridge
