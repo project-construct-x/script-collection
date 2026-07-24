@@ -1,0 +1,206 @@
+#
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
+#  Copyright (c) 2025 Cofinity-X
+#  Copyright (c) 2025 LKS Next
+#  Copyright (c) 2025 Contributors to the Eclipse Foundation
+#
+#  See the NOTICE file(s) distributed with this work for additional
+#  information regarding copyright ownership.
+#
+#  This program and the accompanying materials are made available under the
+#  terms of the Apache License, Version 2.0 which is available at
+#  https://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.
+#
+#  SPDX-License-Identifier: Apache-2.0
+#
+
+{{ $fullName := .Values.fullnameOverride -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wallet.fullname" . }}
+  labels:
+    {{- include "wallet.server.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.wallet.autoscaling.enabled }}
+  replicas: {{ .Values.wallet.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "wallet.server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.wallet.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "wallet.server.selectorLabels" . | nindent 8 }}
+        {{- with .Values.wallet.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "wallet.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.wallet.podSecurityContext | nindent 8 }}
+      {{- if or .Values.wallet.initContainers .Values.customCaCerts }}
+      initContainers:
+        {{- if .Values.wallet.initContainers }}
+        {{- toYaml .Values.wallet.initContainers | nindent 8 }}
+        {{- end }}
+        {{- if .Values.customCaCerts }}
+        - name: custom-cacerts
+          # either use the specified image, or use the default one
+          {{- if .Values.wallet.image.repository }}
+          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
+          {{- else }}
+          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cp /opt/java/openjdk/lib/security/cacerts /workdir/
+              find /cacerts -type f \( -iname \*.crt -o -iname \*.pem \) -exec echo "{}" \; | while read PEM_FILE_PATH; do
+                PEM_FILE=${PEM_FILE_PATH##*/}
+                ALIAS=${PEM_FILE%.*}
+                echo "adding ${PEM_FILE} with alias ${ALIAS} to cacerts ..."
+                keytool -import -noprompt -trustcacerts -alias ${ALIAS} -file ${PEM_FILE_PATH} -keystore /workdir/cacerts -storepass changeit
+              done
+          securityContext:
+            {{- toYaml .Values.wallet.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: custom-cacertificates
+              mountPath: /cacerts
+            - name: custom-cacerts
+              mountPath: /workdir
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.wallet.securityContext | nindent 12 }}
+          # either use the specified image, or use the default one
+          {{- if .Values.wallet.image.repository }}
+          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
+          {{- else }}
+          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
+
+          imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
+          ports:
+          {{- range $key,$value := .Values.wallet.endpoints }}
+            - name: {{ $key }}
+              containerPort: {{ $value.port }}
+              protocol: TCP
+          {{- end }}
+          {{- if .Values.wallet.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.wallet.endpoints.default.path }}/check/liveness
+              port: {{ .Values.wallet.endpoints.default.port }}
+            initialDelaySeconds: {{ .Values.wallet.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.wallet.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.wallet.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.wallet.livenessProbe.failureThreshold }}
+            successThreshold: {{ .Values.wallet.livenessProbe.successThreshold }}
+          {{- end }}
+          {{- if .Values.wallet.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.wallet.endpoints.default.path }}/check/readiness
+              port: {{ .Values.wallet.endpoints.default.port }}
+            initialDelaySeconds: {{ .Values.wallet.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.wallet.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.wallet.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.wallet.readinessProbe.failureThreshold }}
+            successThreshold: {{ .Values.wallet.readinessProbe.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.wallet.resources | nindent 12 }}
+          env:
+          {{- if .Values.wallet.debug.enabled }}
+            - name: "JAVA_TOOL_OPTIONS"
+            {{- if .Values.wallet.debug.suspendOnStart }}
+              value: >-
+                {{ printf "%s-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=%v"  (ternary "-XX:UseSVE=0 " "" .Values.wallet.useSVE) .Values.wallet.debug.port}}
+            {{- else }}
+              value: >-
+                {{ printf "%s-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=%v"  (ternary "-XX:UseSVE=0 " "" .Values.wallet.useSVE) .Values.wallet.debug.port}}
+            {{- end }}
+          {{- end }}
+          {{- range $key, $value := .Values.wallet.envValueFrom }}
+            - name: {{ $key | quote }}
+              valueFrom:
+                {{- tpl (toYaml $value) $ | nindent 16 }}
+          {{- end }}
+          {{- range $key, $value := .Values.wallet.env }}
+            - name: {{ $key | quote }}
+              value: {{ $value | quote }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $fullName }}-config
+            - configMapRef:
+                name: {{ $fullName }}-datasource-config
+            - secretRef:
+                name: {{ $fullName }}-datasource-credentials
+          {{- if .Values.wallet.superuser.createSecret }}
+            - secretRef:
+                name: {{ $fullName }}-superuser-credentials
+          {{- end }}
+          {{- if and (or .Values.wallet.envSecretNames .Values.wallet.envConfigMapNames) (or (gt (len .Values.wallet.envSecretNames) 0) (gt (len .Values.wallet.envConfigMapNames) 0)) }}
+          {{- range $value := .Values.wallet.envSecretNames }}
+            - secretRef:
+                name: {{ $value | quote }}
+          {{- end }}
+          {{- range $value := .Values.wallet.envConfigMapNames }}
+            - configMapRef:
+                name: {{ printf "%s-%s" $fullName $value | quote }}
+          {{- end }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.customCaCerts }}
+            - name: custom-cacerts
+              mountPath: /opt/java/openjdk/lib/security/cacerts
+              subPath: cacerts
+            {{- end }}
+            - name: "tmp"
+              mountPath: "/tmp"
+      volumes:
+        - name: "configuration"
+          configMap:
+        {{- if .Values.customCaCerts }}
+        - name: custom-cacertificates
+          configMap:
+            name: {{ include "wallet.fullname" . }}-custom-cacerts
+            defaultMode: 0400
+        - name: custom-cacerts
+          emptyDir:
+            sizeLimit: 1Mi
+        {{- end }}
+        - name: "tmp"
+          emptyDir: { }
+      {{- with .Values.wallet.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.wallet.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.wallet.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

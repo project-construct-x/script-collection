@@ -1,0 +1,88 @@
+{{- $fullName := include "wallet.fullname" . -}}
+{{- $namespace := .Release.Namespace -}}
+================================================================================
+  Construct-X Wallet "{{ .Release.Name }}" — installation complete
+================================================================================
+
+  Chart version : {{ .Chart.Version }}
+  App version   : {{ .Chart.AppVersion }}
+  Namespace     : {{ $namespace }}
+  Release       : {{ .Release.Name }}
+
+================================================================================
+  Public endpoints
+================================================================================
+{{- $ingressShown := false }}
+{{- range .Values.wallet.ingresses }}
+  {{- if .enabled }}
+    {{- $ingressShown = true }}
+    {{- $proto := "http" }}
+    {{- if .tls.enabled }}{{ $proto = "https" }}{{ end }}
+
+  Ingress on {{ .hostname }} (className: {{ .className | default "default" }})
+    {{- range .endpoints }}
+      {{- $ep := index $.Values.wallet.endpoints . }}
+      {{- if $ep }}
+    {{ printf "%-15s" . }} {{ $proto }}://{{ index $.Values.wallet.ingresses 0 "hostname" }}{{ $ep.path }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- if not $ingressShown }}
+  No ingress is enabled. Endpoints are reachable inside the cluster only:
+
+  kubectl port-forward -n {{ $namespace }} svc/{{ $fullName }} \
+    {{- range $name, $ep := .Values.wallet.endpoints }}
+      {{ $ep.port }}:{{ $ep.port }} {{- end }}
+
+  Then locally:
+    {{- range $name, $ep := .Values.wallet.endpoints }}
+    {{ printf "%-15s" $name }} http://localhost:{{ $ep.port }}{{ $ep.path }}
+    {{- end }}
+{{- end }}
+
+{{- if eq .Values.wallet.superuser.createSecret true }}
+================================================================================
+  Super-User participant
+================================================================================
+
+  The wallet auto-seeds a super-user on first start:
+    Participant ID  : {{ .Values.wallet.superuser.id }}
+    API key         : {{ .Values.wallet.superuser.apiKey }}
+    Public key alias: {{ .Values.wallet.superuser.publicKeyAlias }}
+    Private key alias: {{ .Values.wallet.superuser.privateKeyAlias }}
+
+  If you reinstall while keeping PostgreSQL persistence, the participant context
+  remains and the seed is skipped. Wipe with:
+    kubectl exec -n {{ $namespace }} -it \
+      $(kubectl get pod -n {{ $namespace }} -l app.kubernetes.io/name=postgresql -o name | head -1) -- \
+      psql -U {{ .Values.postgresql.auth.username }} -d {{ .Values.postgresql.auth.database }} \
+      -c "DELETE FROM participant_context WHERE participant_context_id = '{{ .Values.wallet.superuser.id }}';"
+    kubectl rollout restart -n {{ $namespace }} deploy/{{ $fullName }}
+
+  {{- if eq (default "YWRtaW4.adminKey" .Values.wallet.superuser.apiKey) "YWRtaW4.adminKey" }}
+
+  ⚠ WARNING: Super-User Extension is using the default API key. Change wallet.superuser.apiKey
+  before production use.
+  {{- end }}
+{{- end }}
+================================================================================
+{{- if not .Values.wallet.didweb.https }}
+
+  ⚠ WARNING: didweb.https is set to false. did:web URLs will use HTTP.
+  This is only acceptable for local testing — switch to true before going public.
+{{- end }}
+{{- if eq .Values.vault.server.dev.enabled true }}
+
+  ⚠ WARNING: Vault is running in dev mode. All secrets are lost on pod restart.
+  For production, set vault.server.dev.enabled=false and configure persistence.
+{{- end }}
+{{- if eq (default "root" .Values.vault.hashicorp.token) "root" }}
+
+  ⚠ WARNING: vault.hashicorp.token is set to "root" (dev-mode default). Change vault.hashicorp.token before production use.
+{{- end }}
+{{- if eq (default "password" .Values.postgresql.auth.password) "password" }}
+
+  ⚠ WARNING: PostgreSQL is using the default password. Change postgresql.auth.password
+  before production use.
+{{- end }}
