@@ -234,7 +234,7 @@ services:
       - tx.edc.postgresql.migration.policy-monitor.enabled=false
       - tx.edc.postgresql.migration.policy.enabled=false
       - tx.edc.postgresql.migration.transferprocess.enabled=false
-      - edc.iam.trusted-issuer.example.id=did:web:local-issuer-wallet:con-x-issuer
+#      - edc.iam.trusted-issuer.example.id=did:web:local-issuer-wallet:con-x-issuer
       - edc.iam.did.web.use.https=false
       - edc.iam.sts.oauth.client.secret.alias=consumersecret
       - edc.iam.credential.revocation.mimetype=application/json
@@ -266,6 +266,8 @@ services:
       - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
       - tx.edc.iam.iatp.default-scopes.test.type=MembershipCredential
       - tx.edc.iam.iatp.default-scopes.test.operation=read
+      - edc.iam.trustserver.url=http://host.docker.internal:8080
+      - edc.iam.trustserver.default.interval=14
     healthcheck:
       test: ["CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1"]
       start_period: 10s
@@ -282,6 +284,8 @@ services:
       - "29000:9000"  # Default port
       - "29010:9010"  # Management API
       - "29020:9020" # DSP API
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - con-x-test-network
 
@@ -376,6 +380,8 @@ services:
       - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
       - tx.edc.iam.iatp.default-scopes.test.type=MembershipCredential
       - tx.edc.iam.iatp.default-scopes.test.operation=read
+      - edc.iam.trustserver.url=http://host.docker.internal:8080
+      - edc.iam.trustserver.default.interval=14
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 10s
@@ -392,6 +398,8 @@ services:
       - "39000:9000"  # Default port
       - "39010:9010"  # Management API
       - "39020:9020" # DSP API
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - con-x-test-network
 
