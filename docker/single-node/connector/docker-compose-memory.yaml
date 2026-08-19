@@ -140,7 +140,7 @@ services:
   provider-controlplane:
     container_name: provider-controlplane
     image: ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:latest
-    pull_policy: never
+    pull_policy: missing
     environment:
       - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
       - tx.edc.postgresql.migration.asset.enabled=false
@@ -210,7 +210,7 @@ services:
   provider-dataplane:
     container_name: provider-dataplane
     image: ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:latest
-    pull_policy: never
+    pull_policy: missing
     environment:
       - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
       - web.http.public.port=9500
