@@ -23,10 +23,24 @@
 VAULT="${VAULT_ADDR:-http://shared-vault:8200}"
 TOKEN="${VAULT_TOKEN:?missing VAULT_TOKEN}"
 
+secret_exists() {
+  local path=$1
+
+  curl -fsS \
+    -H "X-Vault-Token: $TOKEN" \
+    "$VAULT/v1/secret/data/$path" \
+    >/dev/null 2>&1
+}
+
 # function that creates and deploys a rsa keypair:
 
 create_and_store_keypair() {
   local prefix=$1
+
+  if secret_exists "${prefix}_priv" && secret_exists "${prefix}_pub"; then
+    echo "Keypair ${prefix} already exists. Skipping."
+    return 0
+  fi
 
   # create rsa keypair
   openssl genrsa -out /tmp/${prefix}_priv_pkcs1.pem 2048
@@ -53,6 +67,11 @@ create_and_store_keypair "prov"
 create_and_store_aes_key() {
   local prefix=$1
   local aes_key
+
+  if secret_exists "${prefix}-aes-key-alias"; then
+    echo "AES key ${prefix} already exists. Skipping."
+    return 0
+  fi
 
   # AES-Key erzeugen
   aes_key="$(openssl rand -base64 32 | tr -d '\n')"
