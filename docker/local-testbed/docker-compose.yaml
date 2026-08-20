@@ -266,7 +266,7 @@ services:
       - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
       - tx.edc.iam.iatp.default-scopes.test.type=MembershipCredential
       - tx.edc.iam.iatp.default-scopes.test.operation=read
-      - edc.iam.trustserver.url=http://host.docker.internal:8080
+      - edc.iam.trustserver.url=http://trusted-issuer-server/issuers
       - edc.iam.trustserver.default.interval=14
     healthcheck:
       test: ["CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1"]
@@ -284,8 +284,6 @@ services:
       - "29000:9000"  # Default port
       - "29010:9010"  # Management API
       - "29020:9020" # DSP API
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - con-x-test-network
 
@@ -380,7 +378,7 @@ services:
       - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
       - tx.edc.iam.iatp.default-scopes.test.type=MembershipCredential
       - tx.edc.iam.iatp.default-scopes.test.operation=read
-      - edc.iam.trustserver.url=http://host.docker.internal:8080
+      - edc.iam.trustserver.url=http://trusted-issuer-server/issuers
       - edc.iam.trustserver.default.interval=14
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
@@ -398,8 +396,6 @@ services:
       - "39000:9000"  # Default port
       - "39010:9010"  # Management API
       - "39020:9020" # DSP API
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - con-x-test-network
 
@@ -441,6 +437,18 @@ services:
     ports:
       - "5007:5005"   # Debugger
       - "9500:9500" # Public API
+    networks:
+      - con-x-test-network
+
+  trusted-issuer-server:
+    container_name: trusted-issuer-server
+    image: nginx:alpine
+    ports:
+      - "54321:80"
+    volumes:
+      - ./additional_config/issuers:/var/www/documents:ro
+      - ./additional_config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
     networks:
       - con-x-test-network
 

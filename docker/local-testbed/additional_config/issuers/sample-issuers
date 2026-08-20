@@ -1,0 +1,12 @@
+{
+  "interval": 30,
+  "issuerdata": [
+    {
+      "id": "did:web:local-issuer-wallet:con-x-issuer",
+      "supportedTypes": [
+        "MembershipCredential",
+        "FooCredential"
+      ]
+    }
+  ]
+}
