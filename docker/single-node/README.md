@@ -81,6 +81,12 @@ Sample output:
 
 ## EDC
 
+### Security Disclaimer
+
+For convenience, this setup exposes the Vault via a route so that the provided Bruno collection can access secrets and client credentials directly. This configuration is intended for development and testing environments only.
+
+If you do not want the Vault to be externally accessible, remove the Vault route and provide the required secrets through an alternative secure method.
+
 ### Initialize Vault (only once)
 
 `docker compose -f ./connector/docker-compose.yaml --env-file ./.env up vault -d`

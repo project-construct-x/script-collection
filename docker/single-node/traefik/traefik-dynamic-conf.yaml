@@ -126,7 +126,7 @@ http:
     #   tls:
     #     certresolver: edc-resolver
     
-    vault-ui:
+    vault:
       entrypoints:
         - web
         - websecure

@@ -56,7 +56,7 @@ services:
       timeout: 3s
       retries: 20
     ports:
-      - "8200:8200"
+      - "8200"
     networks:
       - con-x-test-network
       - proxy
@@ -93,15 +93,11 @@ services:
       vault-init:
         condition: service_completed_successfully
     ports:
-      - "1046:1045"         # debugger
-      - "21000:80"          # did API           -> /
-      - "21100:15151"       # identity API      -> /api/identity
-      - "21500:9292"        # sts API           -> /api/sts
-      - "21600:13131"       # credentials API   -> /api/credentials
-    # - "10200:15152"       # issueradmin API   -> /api/issuer
-    # - "13132:13132"       # issuance API      -> /api/issuance
-    #      - "8181:8181"        # default API       -> /api
-    #      - "9999:9999"        # statuslist API    -> /statuslist
+      # - "1045"         # debugger
+      - "80"           # did API           -> /
+      - "15151"        # identity API      -> /api/identity
+      - "9292"         # sts API           -> /api/sts
+      - "13131"        # credentials API   -> /api/credentials
     environment:
       - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:1045
       - EDC_HOSTNAME=${DOMAIN}
@@ -191,10 +187,10 @@ services:
           condition: service_completed_successfully
     entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
     ports:
-      - "5006:5005"   # Debugger
-      - "39000:9000"  # Default port
-      - "39010:9010"  # Management API
-      - "39020:9020" # DSP API
+      # - "5005"   # Debugger
+      - "9000"   # Default port
+      - "9010"   # Management API
+      - "9020"   # DSP API
     networks:
       - con-x-test-network
       - proxy
@@ -237,8 +233,8 @@ services:
         condition: service_healthy
     entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
     ports:
-      - "5007:5005"   # Debugger
-      - "9500:9500" # Public API
+      # - "5005"   # Debugger
+      - "9500"   # Public API
     networks:
       - con-x-test-network
       - proxy
