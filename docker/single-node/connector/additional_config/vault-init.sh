@@ -20,7 +20,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-VAULT="${VAULT_ADDR:-http://shared-vault:8200}"
+VAULT="${VAULT_ADDR:-http://vault:8200}"
 TOKEN="${VAULT_TOKEN:?missing VAULT_TOKEN}"
 
 secret_exists() {
@@ -60,9 +60,9 @@ create_and_store_keypair() {
   rm -f /tmp/${prefix}_priv_pkcs1.pem /tmp/${prefix}_priv.pem /tmp/${prefix}_pub.pem
 }
 
-# create keypair for consumer and provider dataplane:
+# create keypair for dataplane:
 
-create_and_store_keypair "prov"
+create_and_store_keypair "keyalias"
 
 create_and_store_aes_key() {
   local prefix=$1
@@ -89,5 +89,5 @@ create_and_store_aes_key() {
   echo "AES key stored at secret/data/${prefix}-aes-key-alias"
 }
 
-# create AES keys for wallets
-create_and_store_aes_key "provider-wallet"
+# create AES key for wallet
+create_and_store_aes_key "wallet"

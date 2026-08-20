@@ -83,7 +83,7 @@ Sample output:
 
 ### Initialize Vault (only once)
 
-`docker compose -f ./connector/docker-compose.yaml --env-file ./.env up shared-vault -d`
+`docker compose -f ./connector/docker-compose.yaml --env-file ./.env up vault -d`
 
 #### Set the appropriate ownership
 The default Vault user inside the Container has the UID `100`.
@@ -92,7 +92,7 @@ The default Vault user inside the Container has the UID `100`.
 
 #### Open a Terminal inside the Container
 
-`docker exec -it shared-vault sh`
+`docker exec -it vault sh`
 
 Run the following command inside the vault container:
 
@@ -118,7 +118,7 @@ Run the following command with the unseal key from the previous step.
 
 #### Stop Vault
 
-`docker compose -f ./connector/docker-compose.yaml --env-file ./.env down shared-vault -v`
+`docker compose -f ./connector/docker-compose.yaml --env-file ./.env down vault -v`
 
 Your Vault is now initialized.
 
@@ -127,7 +127,7 @@ Your Vault is now initialized.
 
 #### Open a Terminal inside the Container
 
-`docker exec -it shared-vault sh`
+`docker exec -it vault sh`
 
 #### Unseal Vault
 Run the following command with the unseal key.

@@ -1,40 +1,27 @@
 vars {
-  ISSUER_DID_API: {{ISSUER_DOMAIN}}
-  ISSUER_ID_API: {{ISSUER_DOMAIN}}/api/identity
-  ISSUER_ISS_API: {{ISSUER_DOMAIN}}/api/issuer
-  CONSUMER_IDHUB_DID_API: {{CONSUMER_DOMAIN}}
-  CONSUMER_IDHUB_ID_API: {{CONSUMER_DOMAIN}}/api/identity
-  CONSUMER_IDHUB_STS_API: {{CONSUMER_DOMAIN}}/api/sts
-  CONSUMER_IDHUB_CREDS_API: {{CONSUMER_DOMAIN}}/api/credentials
-  ISSUER_APIKEY:
-  CONSUMER_IH_APIKEY:
-  PROVIDER_IH_APIKEY:
-  CONSUMER_VAULTURL: {{CONSUMER_DOMAIN}}
-  CONSUMER_STS_SECRET:
-  PROVIDER_STS_SECRET:
-  PROVIDER_MANAGEMENT: {{PROVIDER_DOMAIN}}/management
-  CONSUMER_MANAGEMENT: {{CONSUMER_DOMAIN}}/management
-  PROVIDER_DATAPLANE_PUBLIC: https://example.com/public
-  PROVIDER_IDHUB_DID_API: {{PROVIDER_DOMAIN}}
-  PROVIDER_IDHUB_ID_API: {{PROVIDER_DOMAIN}}/api/identity
-  PROVIDER_IDHUB_STS_API: {{PROVIDER_DOMAIN}}/api/sts
-  PROVIDER_IDHUB_CREDS_API: {{PROVIDER_DOMAIN}}/api/credentials
+  DOMAIN: https://example.com
+  ID: did:web:example.com
+  PART_CONT: connector1
+  VAULTURL: {{DOMAIN}}
+  MANAGEMENT: {{DOMAIN}}/management
+  MANAGEMENT_API_KEY: management-api-key
+  IDHUB_ID_API: {{DOMAIN}}/api/identity
+  IDHUB_DID_API: {{DOMAIN}}
+  IDHUB_CREDS_API: {{DOMAIN}}/api/credentials
   ISS_ID: did:web:example.com
-  CONS_ID: did:web:example.com
-  PROV_ID: did:web:example.com
-  cons_access_token:
-  prov_access_token:
-  offerId:
-  negotiation-id:
-  pullSecret:
   ISS_PART_CONT: issuer1
-  CONS_PART_CONT: connector1
-  PROV_PART_CONT: connector2
-  PROVIDER_VAULTURL: {{PROVIDER_DOMAIN}}
-  CONSUMER_MANAGEMENT_API_KEY: prov-management-api-key
-  ISSUER_DOMAIN: https://example.com
-  CONSUMER_DOMAIN: https://example.com
-  PROVIDER_DOMAIN: https://example.com
-  contractId:
-  transferId:
+  ISSUER_DID_API: {{DOMAIN}}
+  ISSUER_ID_API: {{DOMAIN}}/api/identity
+  ISSUER_ISS_API: {{DOMAIN}}/api/issuer
+  COUNTERPARTY_DOMAIN: https://example.com
+  COUNTERPARTY_ID: did:web:example.com
+  COUNTERPARTY_DATAPLANE_PUBLIC: https://example.com/public
+  IH_APIKEY: 
+  STS_SECRET: 
+  ISSUER_APIKEY: 
+  offerId: 
+  negotiation-id: 
+  pullSecret: 
+  contractId: 
+  transferId: 
 }

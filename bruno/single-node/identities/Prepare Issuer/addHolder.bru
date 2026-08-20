@@ -1,5 +1,5 @@
 meta {
-  name: addConsumerHolder
+  name: addHolder
   type: http
   seq: 3
 }
@@ -12,9 +12,9 @@ post {
 
 body:json {
   {
-    "holderId" : "{{CONS_ID}}", 
-    "did" : "{{CONS_ID}}", 
-    "name" : "{{CONS_PART_CONT}}"
+    "holderId" : "DID", 
+    "did" : "DID",  
+    "name" : "PART_CONT"
   }
 }
 

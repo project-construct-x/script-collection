@@ -141,62 +141,62 @@ http:
     dataplane-public-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-dataplane:9500
+          - url: http://dataplane:9500
 
     controlplane-management-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-controlplane:9010
+          - url: http://controlplane:9010
     
     controlplane-dsp-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-controlplane:9020
+          - url: http://controlplane:9020
 
     controlplane-cpcontrol-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-controlplane:9050
+          - url: http://controlplane:9050
 
     dataplane-dpcontrol-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-dataplane:9550
+          - url: http://dataplane:9550
     
     idhub-did-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:80
+          - url: http://wallet:80
     
     idhub-identity-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:15151
+          - url: http://wallet:15151
     
     idhub-sts-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:9292
+          - url: http://wallet:9292
     
     idhub-credentials-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:13131
+          - url: http://wallet:13131
 
     idhub-statuslist-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:9999
+          - url: http://wallet:9999
 
     issuance-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:13132
+          - url: http://wallet:13132
 
     issuer-api-svc:
       loadBalancer:
         servers:
-          - url: http://provider-wallet:15152
+          - url: http://wallet:15152
 
 
     # debug-svc:
@@ -207,4 +207,4 @@ http:
     vault-svc:
       loadBalancer:
         servers:
-          - url: http://shared-vault:8200
+          - url: http://vault:8200

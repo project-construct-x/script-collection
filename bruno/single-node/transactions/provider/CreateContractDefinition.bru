@@ -5,9 +5,15 @@ meta {
 }
 
 post {
-  url: {{PROVIDER_MANAGEMENT}}/v3/contractdefinitions
+  url: {{MANAGEMENT}}/v3/contractdefinitions
   body: json
-  auth: inherit
+  auth: apikey
+}
+
+auth:apikey {
+  key: X-Api-key
+  value: {{MANAGEMENT_API_KEY}}
+  placement: header
 }
 
 body:json {

@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{CONSUMER_MANAGEMENT}}/v3/contractnegotiations
+  url: {{MANAGEMENT}}/v3/contractnegotiations
   body: json
   auth: apikey
 }
@@ -16,7 +16,7 @@ headers {
 
 auth:apikey {
   key: X-Api-key
-  value: {{CONSUMER_MANAGEMENT_API_KEY}}
+  value: {{MANAGEMENT_API_KEY}}
   placement: header
 }
 
@@ -27,15 +27,15 @@ body:json {
       "odrl": "http://www.w3.org/ns/odrl/2/"
     },
     "@type": "ContractRequest",
-    "counterPartyAddress": "{{PROVIDER_DOMAIN}}/dsp/2025-1",
-    "connectorId": "{{PROV_ID}}",
+    "counterPartyAddress": "{{COUNTERPARTY_DOMAIN}}/dsp/2025-1",
+    "connectorId": "{{COUNTERPARTY_ID}}",
     "protocol": "dataspace-protocol-http:2025-1",
     "policy": {
       "@context": "http://www.w3.org/ns/odrl.jsonld",
       "@id": "{{offerId}}",
       "@type": "Offer",
-      "assigner": "{{PROV_ID}}",
-      "assignee": "{{CONS_ID}}",
+      "assigner": "{{COUNTERPARTY_ID}}",
+      "assignee": "{{ID}}",
       "target": "assetId"
     }
   }

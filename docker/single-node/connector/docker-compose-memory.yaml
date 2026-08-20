@@ -19,8 +19,8 @@
 #
 
 services:
-  shared-postgres:
-    container_name: shared-postgres
+  postgres:
+    container_name: postgres
     image: postgres:16.4-alpine
     environment:
       - POSTGRES_USER=admin
@@ -35,8 +35,8 @@ services:
     networks:
       - con-x-test-network    
 
-  shared-vault:
-    container_name: shared-vault
+  vault:
+    container_name: vault
     image: vault:1.13.3
     command: server -dev -dev-root-token-id=vaultsecret0123456789 -dev-listen-address=0.0.0.0:8200
     environment:
@@ -60,8 +60,8 @@ services:
   # Note: When using Vault Mock, change the `vault-init` dependency from
   # `condition: service_healthy` to `condition: service_started`.
 
-  # shared-vault:
-  #   container_name: shared-vault
+  # vault:
+  #   container_name: vault
   #   image: ghcr.io/project-construct-x/vault-mock:sha-efcc804
   #   environment:
   #     HASHIMOCK_TOKEN: vaultsecret0123456789
@@ -75,11 +75,11 @@ services:
     container_name: vault-init
     image: alpine:3.19
     depends_on:
-      shared-vault:
+      vault:
         # condition: service_healthy
         condition: service_started
     environment:
-      VAULT_ADDR: http://shared-vault:8200
+      VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: vaultsecret0123456789
     volumes:
       - ./additional_config/vault-init.sh:/scripts/init.sh:ro
@@ -94,12 +94,12 @@ services:
     networks:
       - con-x-test-network
 
-  provider-wallet:
-    container_name: provider-wallet
+  wallet:
+    container_name: wallet
     image: ghcr.io/project-construct-x/wallet:0.17.0-1
     pull_policy: missing
     depends_on:
-      shared-postgres:
+      postgres:
         condition: service_healthy
       vault-init:
         condition: service_completed_successfully
@@ -120,16 +120,16 @@ services:
       - EDC_IH_API_SUPERUSER_ID=admin
       - EDC_IH_API_KEY_SUPERUSER=YWRtaW4.adminKey
       - EDC_ISSUER_STATUSLIST_SIGNING_KEY_ALIAS=foo
-      - EDC_ENCRYPTION_AES_KEY_ALIAS=provider-wallet-aes-key-alias
+      - EDC_ENCRYPTION_AES_KEY_ALIAS=wallet-aes-key-alias
       - EDC_IAM_KEY_ALGORITHM=RSA
       - EDC_IH_API_SUPERUSER_PUBLIC_KEY_ALIAS=admin3#pubkey
       - EDC_IH_API_SUPERUSER_PRIVATE_KEY_ALIAS=admin3#privkey
       - WEB_HTTP_DID_PORT=80
       - EDC_SQL_SCHEMA_AUTOCREATE=true
-      - EDC_DATASOURCE_DEFAULT_URL=jdbc:postgresql://shared-postgres:5432/prov_ih_db
+      - EDC_DATASOURCE_DEFAULT_URL=jdbc:postgresql://postgres:5432/ih_db
       - EDC_DATASOURCE_DEFAULT_USER=admin
       - EDC_DATASOURCE_DEFAULT_PASSWORD=password
-      - EDC_VAULT_HASHICORP_URL=http://shared-vault:8200
+      - EDC_VAULT_HASHICORP_URL=http://vault:8200
       - EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED=true
       - EDC_VAULT_HASHICORP_TOKEN=vaultsecret0123456789
       - EDC_STATUSLIST_CALLBACK_ADDRESS=https://${DOMAIN}/statuslist
@@ -137,8 +137,8 @@ services:
       - con-x-test-network
       - proxy
 
-  provider-controlplane:
-    container_name: provider-controlplane
+  controlplane:
+    container_name: controlplane
     image: ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:latest
     pull_policy: missing
     environment:
@@ -157,16 +157,16 @@ services:
       - tx.edc.postgresql.migration.transferprocess.enabled=false
       - edc.iam.trusted-issuer.example.id=${ISSUER_DID}
       - edc.iam.did.web.use.https=true
-      - edc.iam.sts.oauth.client.secret.alias=consumersecret
+      - edc.iam.sts.oauth.client.secret.alias=vaultsecret
       - edc.iam.credential.revocation.mimetype=application/json
-      - edc.iam.sts.oauth.token.url=http://provider-wallet:9292/api/sts/token
+      - edc.iam.sts.oauth.token.url=http://wallet:9292/api/sts/token
       - edc.iam.sts.oauth.client.id=${DID}
       - edc.iam.issuer.id=${DID}
       - web.http.port=9000
       - web.http.path=/api
       - web.http.management.port=9010
       - web.http.management.path=/management
-      - web.http.management.auth.key=prov-management-api-key
+      - web.http.management.auth.key=management-api-key
       - web.http.management.auth.type=tokenbased
       - web.http.protocol.port=9020
       - web.http.protocol.path=/dsp
@@ -178,10 +178,10 @@ services:
       - edc.participant.id=${DID}
       - edc.dsp.callback.address=https://${DOMAIN}/dsp
       - edc.sql.schema.autocreate=true
-      - edc.datasource.default.url=jdbc:postgresql://shared-postgres:5432/prov_cpl
+      - edc.datasource.default.url=jdbc:postgresql://postgres:5432/cpl
       - edc.datasource.default.user=admin
       - edc.datasource.default.password=password
-      - edc.vault.hashicorp.url=http://shared-vault:8200
+      - edc.vault.hashicorp.url=http://vault:8200
       - edc.vault.hashicorp.health.check.enabled=true
       - edc.vault.hashicorp.token=vaultsecret0123456789
       - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
@@ -193,7 +193,7 @@ services:
       interval: 3s
       retries: 30
     depends_on:
-        shared-postgres:
+        postgres:
           condition: service_healthy
         vault-init:
           condition: service_completed_successfully
@@ -207,8 +207,8 @@ services:
       - con-x-test-network
       - proxy
 
-  provider-dataplane:
-    container_name: provider-dataplane
+  dataplane:
+    container_name: dataplane
     image: ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:latest
     pull_policy: missing
     environment:
@@ -219,28 +219,28 @@ services:
       - web.http.management.path=/management
       - web.http.control.port=9550
       - web.http.control.path=/dpcontrol
-      - edc.hostname=provider-dataplane
+      - edc.hostname=dataplane
       - edc.dpf.selector.url=https://${DOMAIN}/cpcontrol/v1/dataplanes
       - edc.data.plane.self.unregistration=true
-      - edc.datasource.default.url=jdbc:postgresql://shared-postgres:5432/prov_dpl
+      - edc.datasource.default.url=jdbc:postgresql://postgres:5432/dpl
       - edc.datasource.default.user=admin
       - edc.datasource.default.password=password
       - edc.sql.schema.autocreate=true
-      - edc.transfer.proxy.token.signer.privatekey.alias=prov_priv
-      - edc.transfer.proxy.token.verifier.publickey.alias=prov_pub
-      - edc.vault.hashicorp.url=http://shared-vault:8200
+      - edc.transfer.proxy.token.signer.privatekey.alias=keyalias_priv
+      - edc.transfer.proxy.token.verifier.publickey.alias=keyalias_pub
+      - edc.vault.hashicorp.url=http://vault:8200
       - edc.vault.hashicorp.health.check.enabled=true
       - edc.vault.hashicorp.token=vaultsecret0123456789
       - edc.iam.trusted-issuer.example.id=${ISSUER_DID}
       - edc.iam.did.web.use.https=true
-      - edc.iam.sts.oauth.client.secret.alias=consumersecret
+      - edc.iam.sts.oauth.client.secret.alias=vaultsecret
       - edc.iam.credential.revocation.mimetype=application/json
-      - edc.iam.sts.oauth.token.url=http://provider-wallet:9292/api/sts/token
+      - edc.iam.sts.oauth.token.url=http://wallet:9292/api/sts/token
       - edc.iam.sts.oauth.client.id=${DID}
       - edc.iam.issuer.id=${DID}
       - edc.dataplane.api.public.baseurl=https://${DOMAIN}/public
     depends_on:
-      provider-controlplane:
+      controlplane:
         condition: service_healthy
     entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
     ports:

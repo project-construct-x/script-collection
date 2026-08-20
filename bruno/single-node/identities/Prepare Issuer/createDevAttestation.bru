@@ -1,7 +1,7 @@
 meta {
   name: createDevAttestation
   type: http
-  seq: 5
+  seq: 4
 }
 
 post {
@@ -19,14 +19,14 @@ body:json {
     "attestationType": "dev",
     "id": "dev-def-1",
     "configuration": {
-      "{{CONS_ID}}": {
+      "did:web:example.com": {
         "isConsumer": true,
         "isProvider": false,
         "foo": {
           "bar": 123
         }
       },
-      "{{PROV_ID}}": {
+      "did:web:example2.com": {
         "isConsumer": false,
         "isProvider": true,
         "foo": {

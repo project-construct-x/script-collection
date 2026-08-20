@@ -5,14 +5,14 @@ meta {
 }
 
 post {
-  url: {{CONSUMER_MANAGEMENT}}/v3/transferprocesses
+  url: {{MANAGEMENT}}/v3/transferprocesses
   body: json
   auth: apikey
 }
 
 auth:apikey {
   key: X-Api-key
-  value: {{CONSUMER_MANAGEMENT_API_KEY}}
+  value: {{MANAGEMENT_API_KEY}}
   placement: header
 }
 
@@ -24,8 +24,8 @@ body:json {
       "@type": "TransferRequestDto",
       "protocol": "dataspace-protocol-http:2025-1",
       "contractId": "{{contractId}}",
-      "counterPartyAddress": "{{PROVIDER_DOMAIN}}/dsp/2025-1",
-      "connectorId": "{{PROV_ID}}",
+      "counterPartyAddress": "{{COUNTERPARTY_DOMAIN}}/dsp/2025-1",
+      "connectorId": "{{COUNTERPARTY_ID}}",
       "transferType": "HttpData-PULL"
   }
 }

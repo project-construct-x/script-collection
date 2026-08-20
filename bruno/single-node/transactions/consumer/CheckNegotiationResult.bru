@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{CONSUMER_MANAGEMENT}}/v3/contractnegotiations/{{negotiation-id}}
+  url: {{MANAGEMENT}}/v3/contractnegotiations/{{negotiation-id}}
   body: none
   auth: apikey
 }
@@ -16,7 +16,7 @@ headers {
 
 auth:apikey {
   key: X-Api-key
-  value: {{CONSUMER_MANAGEMENT_API_KEY}}
+  value: {{MANAGEMENT_API_KEY}}
   placement: header
 }
 

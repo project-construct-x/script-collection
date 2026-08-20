@@ -1,4 +1,4 @@
-    CREATE DATABASE prov_ih_db;
-    CREATE DATABASE prov_cpl;
-    CREATE DATABASE prov_dpl;
+    CREATE DATABASE ih_db;
+    CREATE DATABASE cpl;
+    CREATE DATABASE dpl;
 
