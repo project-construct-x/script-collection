@@ -7,7 +7,13 @@ meta {
 post {
   url: {{MANAGEMENT}}/v3/policydefinitions
   body: json
-  auth: inherit
+  auth: apikey
+}
+
+auth:apikey {
+  key: X-Api-key
+  value: {{MANAGEMENT_API_KEY}}
+  placement: header
 }
 
 body:json {
