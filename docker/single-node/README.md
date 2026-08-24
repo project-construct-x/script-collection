@@ -36,8 +36,14 @@ Make sure you have...
     - HashiCorp Vault
 
 
-The domain, did and a valid email must be set in the [.env-file](./.env):
+The following values must be configured in the [.env-file](./.env):
 
+- `EMAIL`: Used by Traefik to request and renew TLS certificates from Let's Encrypt.
+- `DOMAIN`: Public domain used to expose the Connector, Wallet, and Vault APIs through Traefik.
+- `DID`: The DID used by the Connector and Wallet.
+- `ISSUER_DID`: DID of the credential issuer.
+
+Example:
 ```
 EMAIL=<YOUR-VALID-EMAIL>
 DOMAIN=<YOUR-DOMAIN>
@@ -48,6 +54,10 @@ ISSUER_DID=<ISSUER-DID>
 
 ## Steps
 ### Traefik
+
+Traefik acts as a reverse proxy and entry point for all services in this setup.
+
+A public domain is required because the Connector, Wallet, and Vault APIs are exposed through a single hostname. Based on the requested path, Traefik routes incoming requests to the appropriate backend service. It also provisions TLS certificates via Let's Encrypt and redirects HTTP traffic to HTTPS automatically. 
 
 #### Create Network
 
