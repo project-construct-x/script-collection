@@ -1,0 +1,4 @@
+    CREATE DATABASE ih_db;
+    CREATE DATABASE cpl;
+    CREATE DATABASE dpl;
+
