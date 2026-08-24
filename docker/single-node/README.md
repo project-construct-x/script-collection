@@ -75,7 +75,7 @@ Sample output:
 
 ### Stop and Remove in Memory
 
-1. `docker compose -f ./traefik/traefik-compose.yaml down`
+1. `docker compose -f ./traefik/traefik-compose.yaml --env-file ./.env down`
 2. `docker compose -f ./connector/docker-compose-memory.yaml --env-file ./.env down -v`
 3. `docker network rm proxy`
 
