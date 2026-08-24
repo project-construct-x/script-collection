@@ -3,6 +3,25 @@
 Minimal Docker Compose setup that starts a single Connector and a single Wallet. This is the smallest
 deployment for a participant to run and test their own node.
 
+## Deployment Variants
+You can choose between two deployment variants:
+
+### In-Memory Setup
+- PostgreSQL runs without persistent storage
+- HashiCorp Vault runs in development mode
+- No manual Vault initialization required
+- All data, secrets, and generated keys are lost when the containers are removed
+
+Recommended for local development, testing, and demonstrations.
+
+### Persistent Setup
+- PostgreSQL data is persisted across restarts
+- HashiCorp Vault uses persistent file-based storage
+- Requires one-time Vault initialization and unsealing
+- Database contents, secrets, and generated keys survive container restarts
+
+Recommended for development environments where data persistence is required.
+
 ## Prerequisites
 
 Make sure you have...
@@ -54,9 +73,9 @@ Sample output:
 ✔ Container traefik Created 
 ```
 
-## EDC in Memory
+## In-Memory Setup
 
-### Start EDC-Services in Memory
+### Start Services
 
 Run `docker compose -f ./connector/docker-compose-memory.yaml --env-file ./.env up -d`
 
@@ -73,13 +92,13 @@ Sample output:
 ```
 
 
-### Stop and Remove in Memory
+### Stop and Remove
 
 1. `docker compose -f ./traefik/traefik-compose.yaml --env-file ./.env down`
 2. `docker compose -f ./connector/docker-compose-memory.yaml --env-file ./.env down -v`
 3. `docker network rm proxy`
 
-## EDC
+## Persistent Setup
 
 ### Security Disclaimer
 
@@ -128,7 +147,7 @@ Run the following command with the unseal key from the previous step.
 
 Your Vault is now initialized.
 
-### Start EDC-Services
+### Start Services
 `docker compose -f ./connector/docker-compose.yaml --env-file ./.env up -d`
 
 #### Open a Terminal inside the Container
