@@ -21,6 +21,9 @@
 #
 
 {{ $fullName := .Values.fullnameOverride -}}
+
+{{- include "issuer-wallet.validateSecretStorage" . -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -60,12 +63,7 @@ spec:
         {{- end }}
         {{- if .Values.customCaCerts }}
         - name: custom-cacerts
-          # either use the specified image, or use the default one
-          {{- if .Values.wallet.image.repository }}
-          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
+          image: {{ include "issuer-wallet.image" . | quote }}
           imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
           command:
             - /bin/sh
@@ -91,13 +89,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.wallet.securityContext | nindent 12 }}
-          # either use the specified image, or use the default one
-          {{- if .Values.wallet.image.repository }}
-          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
-
+          image: {{ include "issuer-wallet.image" . | quote }}
           imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
           ports:
           {{- range $key,$value := .Values.wallet.endpoints }}
@@ -178,6 +170,11 @@ spec:
             {{- end }}
             - name: "tmp"
               mountPath: "/tmp"
+            {{- if eq .Values.wallet.secretStorage "postgresql" }}
+            - name: sql-vault-secrets
+              mountPath: {{ include "issuer-wallet.sqlVaultDirectory" . | quote }}
+              readOnly: true
+            {{- end }}
       volumes:
         - name: "configuration"
           configMap:
@@ -192,6 +189,12 @@ spec:
         {{- end }}
         - name: "tmp"
           emptyDir: { }
+        {{- if eq .Values.wallet.secretStorage "postgresql" }}
+        - name: sql-vault-secrets
+          secret:
+            secretName: {{ .Values.fullnameOverride }}-sql-vault-aes
+            defaultMode: 0400
+        {{- end }}
       {{- with .Values.wallet.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

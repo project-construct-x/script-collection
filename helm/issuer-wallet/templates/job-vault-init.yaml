@@ -17,7 +17,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{ if .Values.vault.hashicorp.init.enabled -}}
+{{ if and (eq .Values.wallet.secretStorage "vault") .Values.wallet.aesKey.enabled -}}
 {{- $fullName := .Values.fullnameOverride -}}
 apiVersion: batch/v1
 kind: Job
@@ -63,10 +63,8 @@ spec:
             - name: FORCE_REGENERATE
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.vault.hashicorp.init.aesKeyAlias }}
             - name: AES_KEY_ALIAS
-              value: {{ . | quote }}
-            {{- end }}
+              value: {{ include "issuer-wallet.aesKeyAlias" . | quote }}
             {{- with .Values.vault.hashicorp.init.privateKeyAlias }}
             - name: PRIVATE_KEY_ALIAS
               value: {{ . | quote }}
