@@ -63,18 +63,27 @@ data:
   EDC_ISSUER_ISSUANCE_SEND_RETRY_LIMIT: {{ $issuer.sendRetryLimit | default "0" | quote }}
   EDC_STATUSLIST_CALLBACK_ADDRESS: {{ $statuslist.callbackAddress | default $defaultStlCallback | quote }} 
 
-  ###########
-  ## VAULT ##
-  ###########
+  {{- if eq .Values.wallet.secretStorage "vault" }}
+  #####################
+  ## HASHICORP VAULT ##
+  #####################
   EDC_VAULT_HASHICORP_URL: {{ tpl .Values.vault.hashicorp.url . | quote }}
   EDC_VAULT_HASHICORP_TIMEOUT_SECONDS: {{ .Values.vault.hashicorp.timeout | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: {{ .Values.vault.hashicorp.healthCheck.enabled | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_STANDBY_OK: {{ .Values.vault.hashicorp.healthCheck.standbyOk | quote }}
   EDC_VAULT_HASHICORP_API_SECRET_PATH: {{ .Values.vault.hashicorp.paths.secret | quote }}
   EDC_VAULT_HASHICORP_API_HEALTH_CHECK_PATH: {{ .Values.vault.hashicorp.paths.health | quote }}
+  {{- end }}
+
+  {{- if eq .Values.wallet.secretStorage "postgresql" }}
+  #################
+  ## SQL VAULT   ##
+  #################
+  EDC_SQL_STORE_VAULT_DIRECTORY: {{ include "issuer-wallet.sqlVaultDirectory" . | quote }}
+  {{- end }}
 
   #################
   ## Encryption  ##
   #################
-  EDC_ENCRYPTION_AES_KEY_ALIAS: {{ .Values.vault.hashicorp.init.aesKeyAlias | default "issuer-wallet-aes-key-alias" | quote }}
+  EDC_ENCRYPTION_AES_KEY_ALIAS: {{ include "issuer-wallet.aesKeyAlias" . | quote }}
   EDC_ISSUER_STATUSLIST_SIGNING_KEY_ALIAS: {{ $statuslist.signingKeyAlias | default "foo" | quote }}

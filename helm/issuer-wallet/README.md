@@ -3,8 +3,31 @@
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 ![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-informational?style=flat-square)
 
-Deploys the [Construct-X Wallet](https://github.com/project-construct-x/wallet) — an EDC IdentityHub runtime — together with a PostgreSQL database and a HashiCorp Vault instance and configures it to act as an dataspace issuer. 
+Deploys the [Construct-X Wallet](https://github.com/project-construct-x/wallet) — an EDC IdentityHub runtime — together with a PostgreSQL database and configures it to act as an dataspace issuer. 
+The wallet stores its cryptographic secrets in one of two backends, selected
+via `wallet.secretStorage`:
 
+`vault` (default) — secrets are kept in a HashiCorp Vault instance
+(bundled or external).
+
+`postgresql` — secrets are kept in the PostgreSQL-backed SQL vault (see [SqlVaultExtension](https://github.com/project-construct-x/wallet/blob/develop/extensions/con-x/sql-vault/README.md#sqlvaultextension)). Requires no HashiCorp Vault.
+
+## Secret storage modes
+
+The wallet supports two mutually exclusive secret backends, selected with
+`wallet.secretStorage`. The chart derives the container image and all
+backend-specific resources from this single value.
+
+| Mode         | Image                                   | HashiCorp Vault              |
+| ------------ | --------------------------------------- | ---------------------------- |
+| `vault`      | `wallet.image.repositoryVaultWallet`    | required (bundled or external) |
+| `postgresql` | `wallet.image.repositoryPsqlWallet`     | not used                     | 
+
+**Rules**
+
+- In `postgresql` mode you must set `install.vault: false`. The combination
+  `wallet.secretStorage: postgresql` + `install.vault: true` fails template
+  rendering with a clear error.
 
 ## Prerequisites
 
@@ -14,7 +37,7 @@ Deploys the [Construct-X Wallet](https://github.com/project-construct-x/wallet) 
 | Helm | 3.14+ |
 
 - A Persistent Volume provisioner is required if `postgresql.primary.persistence.enabled: true`
-- Cluster Internet connection is required if `vault.hashicorp.init.enabled: true` to pull required `apk` packages
+- Cluster Internet connection is required if `wallet.aesKey.enabled: true` and `wallet.secretStorage: vault`, so the `vault-init` job can pull the required `apk` packages.
 
 ## Installation
 
@@ -42,7 +65,11 @@ helm install issuer . -f my-override-values.yaml
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `wallet.image.repository` | string | `ghcr.io/project-construct-x/wallet` | Container image repository. |
+| `wallet.secretStorage`               | string | `vault`                                          | Secret backend. One of `vault` or `postgresql`. Determines the image and all backend resources. |
+| `wallet.aesKey.enabled` | bool   | `true`                        | Whether the AES key is initialised. In `vault` mode drives the `vault-init` job; in `postgresql` mode drives the mounted key secret. |
+| `wallet.aesKey.alias`   | string | `issuer-wallet-aes-key-alias` | Alias of the AES key. In `postgresql` mode this is also the file name of the mounted key.            |
+| `wallet.image.repositoryVaultWallet` | string | `ghcr.io/project-construct-x/wallet`             | Container image used when `secretStorage: vault`.                                                |
+| `wallet.image.repositoryPsqlWallet`  | string | `ghcr.io/project-construct-x/wallet-sql-vault`   | Container image used when `secretStorage: postgresql`. 
 | `wallet.image.tag` | string | `0.17.0-1` | Image tag. Defaults to `chart.appVersion` if left empty. |
 | `wallet.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
 | `wallet.initContainers` | list | `[]` | Additional init containers run before the wallet starts. |
@@ -170,8 +197,6 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
 | `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all issuer-wallet secrets. |
 | `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the issuer-wallet and vault-init job. |
-| `vault.hashicorp.init.enabled` | bool | `true` | Run the post-install vault-init job that seeds required Vault secrets. |
-| `vault.hashicorp.init.aesKeyAlias` | string | `wallet-aes-key-alias` | Vault alias for the AES-256 encryption key. |
 
 ## Sources
 

@@ -28,6 +28,7 @@
 # Set to false to use externally managed PostgreSQL or Vault instances.
 install:
   postgresql: true
+  # This installs Hashicorp Vault. Set this to false, when using wallet.secretStorage=postgresql.
   vault: true
 
 # This is to override the chart name.
@@ -41,13 +42,25 @@ imagePullSecrets: []
 customCaCerts: {}
 
 wallet:
+  # This sets the Secret-Storage used by the Wallet. Allowed Values: "vault" | "postgresql"
+  secretStorage: vault
+
+  aesKey:
+    # Whether to run seeding for required secrets
+    enabled: true
+    # Alias under which the AES-256 encryption key is stored.
+    alias: "issuer-wallet-aes-key-alias"
+
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
-    repository: "ghcr.io/project-construct-x/wallet"
+    # Image for secretStorage=vault
+    repositoryVaultWallet: "ghcr.io/project-construct-x/wallet"
+    # Image for secretStorage=postgresql
+    repositoryPsqlWallet: "ghcr.io/project-construct-x/wallet-sql-vault"
     # This sets the pull policy for images.
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.17.0-1"
+    tag: "0.18.0-1"
   initContainers: []
   # This is for setting Kubernetes Labels to a Pod.
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
@@ -395,8 +408,3 @@ vault:
       secret: /v1/secret
       # Health endpoint polled by the issuer-wallet and the vault-init job
       health: /v1/sys/health
-    init:
-      # Whether to run the post-install vault-init job that seeds required secrets
-      enabled: true
-      # Vault alias under which the AES-256 encryption key is stored.
-      aesKeyAlias: "issuer-wallet-aes-key-alias"

@@ -84,3 +84,41 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Defines Image depending on chosen secretStorage
+*/}}
+{{- define "issuer-wallet.image" -}}
+{{- $tag := .Values.wallet.image.tag | default .Chart.AppVersion -}}
+{{- if eq .Values.wallet.secretStorage "postgresql" -}}
+{{- printf "%s:%s" .Values.wallet.image.repositoryPsqlWallet $tag -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.wallet.image.repositoryVaultWallet $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Defines AES-Key-Alias
+*/}}
+{{- define "issuer-wallet.aesKeyAlias" -}}
+{{- .Values.wallet.aesKey.alias | default "issuer-wallet-aes-key-alias" -}}
+{{- end -}}
+
+{{/*
+Defines Secret Directory for PSQL Vault
+*/}}
+{{- define "issuer-wallet.sqlVaultDirectory" -}}
+{{- "/opt/wallet/secrets" -}}
+{{- end -}}
+
+{{/*
+Preflight Validation for secretStorage Value
+*/}}
+{{- define "issuer-wallet.validateSecretStorage" -}}
+{{- if not (has .Values.wallet.secretStorage (list "vault" "postgresql")) -}}
+{{- fail (printf "wallet.secretStorage must be 'vault' or 'postgresql', got '%s'" .Values.wallet.secretStorage) -}}
+{{- end -}}
+{{- if and (eq .Values.wallet.secretStorage "postgresql") .Values.install.vault -}}
+{{- fail "wallet.secretStorage=postgresql is incompatible with install.vault=true. Set install.vault=false." -}}
+{{- end -}}
+{{- end -}}
