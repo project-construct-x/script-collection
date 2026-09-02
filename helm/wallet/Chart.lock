@@ -1,0 +1,9 @@
+dependencies:
+- name: postgres
+  repository: oci://registry-1.docker.io/cloudpirates
+  version: 0.19.5
+- name: vault
+  repository: https://helm.releases.hashicorp.com
+  version: 0.29.1
+digest: sha256:c730f7da67d2940512fb6cd112b9474968890ecd64c2e3a4101c16702b2b3a81
+generated: "2026-06-15T14:23:22.466394659+02:00"
