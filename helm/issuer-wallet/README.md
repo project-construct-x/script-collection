@@ -42,6 +42,8 @@ backend-specific resources from this single value.
 ## Installation
 
 ```bash
+# Add Hashicorp Repository
+helm repo add hashicorp https://helm.releases.hashicorp.com
 # Add dependencies
 helm dependency build
 # Install
@@ -197,6 +199,9 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
 | `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all issuer-wallet secrets. |
 | `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the issuer-wallet and vault-init job. |
+| `vault.hashicorp.init.forceRegenerate` |	bool |	`false` |	Regenerate secrets in Vault even if they already exist. Optional; vault mode only. |
+| `vault.hashicorp.init.image.repository` |	string |	`alpine` |	Image repository for the vault-init job. |
+| `vault.hashicorp.init.image.tag` |	string |	`3.20` |	Image tag for the vault-init job. |
 
 ## Sources
 
