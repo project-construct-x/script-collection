@@ -21,7 +21,7 @@
 
 # this configmap contains all database configuration that is required by the issuer-wallet runtime.
 
-{{ $fullName := .Values.fullnameOverride -}}
+{{- $fullName := .Values.fullnameOverride -}}
 {{- $postgresql := index .Values "postgresql" | default dict }}
 apiVersion: v1
 kind: ConfigMap

@@ -19,8 +19,8 @@
 
 # this configmap contains the initialization script to generate and store aes and rsa keys into the vault.
 
-{{ if and (eq .Values.wallet.secretStorage "vault") .Values.wallet.aesKey.enabled }}
-{{- $fullName := .Values.fullnameOverride -}}
+{{- if and (eq .Values.wallet.secretStorage "vault") .Values.wallet.aesKey.enabled -}}
+{{- $fullName := .Values.fullnameOverride }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

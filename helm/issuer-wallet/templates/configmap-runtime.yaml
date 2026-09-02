@@ -21,10 +21,10 @@
 
 # this configmap contains all application configuration that is required by the issuer-wallet runtime.
 
-{{ $fullName := .Values.fullnameOverride -}}
-{{- $iam := index .Values "wallet" "iam" | default dict }}
-{{- $issuer := index .Values "wallet" "issuer" | default dict }}
-{{- $statuslist := index $issuer "statuslist" | default dict }}
+{{- $fullName := .Values.fullnameOverride -}}
+{{- $iam := index .Values "wallet" "iam" | default dict -}}
+{{- $issuer := index .Values "wallet" "issuer" | default dict -}}
+{{- $statuslist := index $issuer "statuslist" | default dict -}}
 {{- $defaultStlCallback := printf "https://%s%s" (index .Values.wallet.ingresses 0).hostname .Values.wallet.endpoints.statuslist.path }}
 apiVersion: v1
 kind: ConfigMap

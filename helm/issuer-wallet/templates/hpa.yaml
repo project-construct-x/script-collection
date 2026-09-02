@@ -18,7 +18,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{ if .Values.wallet.autoscaling.enabled }}
+{{- if .Values.wallet.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

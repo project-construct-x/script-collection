@@ -408,3 +408,10 @@ vault:
       secret: /v1/secret
       # Health endpoint polled by the issuer-wallet and the vault-init job
       health: /v1/sys/health
+    init:
+      # Forces Regenaration of seeded Hashicorp Vault Secrets
+      forceRegenerate: false
+      # Image for Secret Initialization Container
+      image:
+        repository: alpine
+        tag: "3.20"
