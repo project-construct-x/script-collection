@@ -18,16 +18,16 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{ $fullName := include "issuer-wallet.fullname" . }}
-{{- $controlLabels := include "issuer-wallet.server.labels" . }}
-{{- $controlEdcEndpoints := .Values.wallet.endpoints }}
-{{- $gitVersion := .Capabilities.KubeVersion.GitVersion }}
-{{- $namespace := .Release.Namespace }}
+{{- $fullName := include "issuer-wallet.fullname" . -}}
+{{- $controlLabels := include "issuer-wallet.server.labels" . -}}
+{{- $controlEdcEndpoints := .Values.wallet.endpoints -}}
+{{- $gitVersion := .Capabilities.KubeVersion.GitVersion -}}
+{{- $namespace := .Release.Namespace -}}
 
-{{- range .Values.wallet.ingresses }}
-{{- if and .enabled .endpoints }}
-{{- $controlIngressName := printf "%s-%s" $fullName .hostname }}
-{{- $annotations := .annotations | default dict }}
+{{- range .Values.wallet.ingresses -}}
+{{- if and .enabled .endpoints -}}
+{{- $controlIngressName := printf "%s-%s" $fullName .hostname -}}
+{{- $annotations := .annotations | default dict -}}
 
 {{- if semverCompare ">=1.19-0" $gitVersion }}
 apiVersion: networking.k8s.io/v1

@@ -17,8 +17,8 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{ if and (eq .Values.wallet.secretStorage "vault") .Values.wallet.aesKey.enabled -}}
-{{- $fullName := .Values.fullnameOverride -}}
+{{- if and (eq .Values.wallet.secretStorage "vault") .Values.wallet.aesKey.enabled -}}
+{{- $fullName := .Values.fullnameOverride }}
 apiVersion: batch/v1
 kind: Job
 metadata:

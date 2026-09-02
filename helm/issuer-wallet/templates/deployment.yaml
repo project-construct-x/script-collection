@@ -20,9 +20,9 @@
 #  SPDX-License-Identifier: Apache-2.0
 #
 
-{{ $fullName := .Values.fullnameOverride -}}
+{{- $fullName := .Values.fullnameOverride -}}
 
-{{- include "issuer-wallet.validateSecretStorage" . -}}
+{{- include "issuer-wallet.validateSecretStorage" . }}
 
 apiVersion: apps/v1
 kind: Deployment
