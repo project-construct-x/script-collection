@@ -12,6 +12,8 @@ There are third-party contents used by and shipped with this project with differ
 
 The Constuct-X wallet Helm charts are based on [Tractus-X IdentityHub Helm charts](https://github.com/eclipse-tractusx/tractusx-identityhub).
 
+The Constuct-X EDC Helm charts are based on [Tractus-X EDC Helm charts](https://github.com/eclipse-tractusx/tractusx-edc).
+
 ### Code of Conduct
 The `CODE_OF_CONDUCT.md` is adapted from the Contributor Covenant, version 3.0, permanently available at [https://www.contributor-covenant.org/version/3/0/](https://www.contributor-covenant.org/version/3/0/). Contributor Covenant is stewarded by the Organization for Ethical Source and licensed under CC BY-SA 4.0. To view a copy of this license, visit [https://creativecommons.org/licenses/by-sa/4.0/](https://creativecommons.org/licenses/by-sa/4.0/).
 
