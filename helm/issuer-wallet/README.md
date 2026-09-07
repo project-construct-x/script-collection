@@ -32,7 +32,7 @@ The chart derives the container image and all backend-specific resources from it
 
 > `autoInit` uses a single unseal key and stores the unseal key and root token as a
 > Kubernetes secret in the namespace — non-production only. For production use KMS
-> auto-unseal.
+> auto-unseal and external key management.
 
 ## Prerequisites
 
