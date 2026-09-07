@@ -63,7 +63,7 @@ data:
   EDC_ISSUER_ISSUANCE_SEND_RETRY_LIMIT: {{ $issuer.sendRetryLimit | default "0" | quote }}
   EDC_STATUSLIST_CALLBACK_ADDRESS: {{ $statuslist.callbackAddress | default $defaultStlCallback | quote }} 
 
-  {{- if eq .Values.wallet.secretStorage "vault" }}
+  {{- if eq (include "issuer-wallet.usesVault" .) "true" }}
   #####################
   ## HASHICORP VAULT ##
   #####################
@@ -75,7 +75,7 @@ data:
   EDC_VAULT_HASHICORP_API_HEALTH_CHECK_PATH: {{ .Values.vault.hashicorp.paths.health | quote }}
   {{- end }}
 
-  {{- if eq .Values.wallet.secretStorage "postgresql" }}
+  {{- if eq .Values.vaultInit.mode "postgres" }}
   #################
   ## SQL VAULT   ##
   #################

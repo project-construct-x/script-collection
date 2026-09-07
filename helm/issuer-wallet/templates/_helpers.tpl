@@ -86,11 +86,11 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Defines Image depending on chosen secretStorage
+Defines Image depending on chosen Vault Mode
 */}}
 {{- define "issuer-wallet.image" -}}
 {{- $tag := .Values.wallet.image.tag | default .Chart.AppVersion -}}
-{{- if eq .Values.wallet.secretStorage "postgresql" -}}
+{{- if eq .Values.vaultInit.mode "postgres" -}}
 {{- printf "%s:%s" .Values.wallet.image.repositoryPsqlWallet $tag -}}
 {{- else -}}
 {{- printf "%s:%s" .Values.wallet.image.repositoryVaultWallet $tag -}}
@@ -101,7 +101,7 @@ Defines Image depending on chosen secretStorage
 Defines AES-Key-Alias
 */}}
 {{- define "issuer-wallet.aesKeyAlias" -}}
-{{- .Values.wallet.aesKey.alias | default "issuer-wallet-aes-key-alias" -}}
+{{- .Values.vaultInit.aes.alias | default "issuer-aes-key-alias" -}}
 {{- end -}}
 
 {{/*
@@ -112,13 +112,22 @@ Defines Secret Directory for PSQL Vault
 {{- end -}}
 
 {{/*
-Preflight Validation for secretStorage Value
+Defines if Hashicorp Vault is used in general
 */}}
-{{- define "issuer-wallet.validateSecretStorage" -}}
-{{- if not (has .Values.wallet.secretStorage (list "vault" "postgresql")) -}}
-{{- fail (printf "wallet.secretStorage must be 'vault' or 'postgresql', got '%s'" .Values.wallet.secretStorage) -}}
+{{- define "issuer-wallet.usesVault" -}}
+{{- ne .Values.vaultInit.mode "postgres" -}}
 {{- end -}}
-{{- if and (eq .Values.wallet.secretStorage "postgresql") .Values.install.vault -}}
-{{- fail "wallet.secretStorage=postgresql is incompatible with install.vault=true. Set install.vault=false." -}}
+
+{{/* 
+Defines if the vault-init job for hashicorp vault does run
+*/}}
+{{- define "common.vaultInit.jobEnabled" -}}
+{{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
 {{- end -}}
+
+{{/* 
+Defines if the psql-vault AES secret rendering does run 
+*/}}
+{{- define "common.vaultInit.sqlAesEnabled" -}}
+{{- and .Values.vaultInit.enabled (eq .Values.vaultInit.mode "postgres") -}}
 {{- end -}}
