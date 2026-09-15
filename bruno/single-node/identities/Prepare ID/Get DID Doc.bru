@@ -1,0 +1,16 @@
+meta {
+  name: Get DID Doc
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{IDHUB_DID_API}}/{{PART_CONT}}
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
