@@ -21,8 +21,8 @@
 #################################################################################
 
 
-{{- $fullName := include "txdc.fullname" . }}
-{{- $controlLabels := include "txdc.controlplane.labels" . }}
+{{- $fullName := include "conxdc.fullname" . }}
+{{- $controlLabels := include "conxdc.controlplane.labels" . }}
 {{- $controlEdcEndpoints := .Values.controlplane.endpoints }}
 {{- $namespace := .Release.Namespace }}
 

@@ -1,4 +1,5 @@
 #################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
 #  Copyright (c) 2023 ZF Friedrichshafen AG
 #  Copyright (c) 2023 Mercedes-Benz Tech Innovation GmbH
 #  Copyright (c) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
@@ -23,12 +24,11 @@
 
 ---
 apiVersion: v2
-name: tractusx-connector
+name: constructx-connector
 description: |
-  A Helm chart for Tractus-X Eclipse Data Space Connector. The connector deployment consists of two runtime consists of a
-  Control Plane and a Data Plane. Note that _no_ external dependencies such as a PostgreSQL database and HashiCorp Vault are included.
+  A Helm chart for Construct-X Eclipse Data Space Connector. The connector deployment consists of two runtime consists of a
+  Control Plane and a Data Plane.
 
-  This chart is intended for use with an _existing_ PostgreSQL database and an _existing_ HashiCorp Vault.
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
@@ -41,14 +41,15 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.13.0-SNAPSHOT
+version: 0.1.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "0.13.0-SNAPSHOT"
-home: https://github.com/eclipse-tractusx/tractusx-edc/tree/main/charts/tractusx-connector
+home: https://github.com/project-construct-x/constructx-edc
 sources:
+  - https://github.com/project-construct-x/constructx-edc
   - https://github.com/eclipse-tractusx/tractusx-edc/tree/main/charts/tractusx-connector
 dependencies:
   # HashiCorp Vault

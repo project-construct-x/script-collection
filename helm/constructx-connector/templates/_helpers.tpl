@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "txdc.name" -}}
+{{- define "conxdc.name" -}}
 {{- default .Chart.Name .Values.nameOverride | replace "+" "_"  | trunc 63 | trimSuffix "-" -}}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "txdc.fullname" -}}
+{{- define "conxdc.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,15 +26,15 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "txdc.chart" -}}
+{{- define "conxdc.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Control Common labels
 */}}
-{{- define "txdc.labels" -}}
-helm.sh/chart: {{ include "txdc.chart" . }}
+{{- define "conxdc.labels" -}}
+helm.sh/chart: {{ include "conxdc.chart" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -44,9 +44,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Control Common labels
 */}}
-{{- define "txdc.controlplane.labels" -}}
-helm.sh/chart: {{ include "txdc.chart" . }}
-{{ include "txdc.controlplane.selectorLabels" . }}
+{{- define "conxdc.controlplane.labels" -}}
+helm.sh/chart: {{ include "conxdc.chart" . }}
+{{ include "conxdc.controlplane.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -58,9 +58,9 @@ app.kubernetes.io/part-of: edc
 {{/*
 Data Common labels
 */}}
-{{- define "txdc.dataplane.labels" -}}
-helm.sh/chart: {{ include "txdc.chart" . }}
-{{ include "txdc.dataplane.selectorLabels" . }}
+{{- define "conxdc.dataplane.labels" -}}
+helm.sh/chart: {{ include "conxdc.chart" . }}
+{{ include "conxdc.dataplane.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -72,25 +72,25 @@ app.kubernetes.io/part-of: edc
 {{/*
 Control Selector labels
 */}}
-{{- define "txdc.controlplane.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "txdc.name" . }}-controlplane
+{{- define "conxdc.controlplane.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "conxdc.name" . }}-controlplane
 app.kubernetes.io/instance: {{ .Release.Name }}-controlplane
 {{- end }}
 
 {{/*
 Data Selector labels
 */}}
-{{- define "txdc.dataplane.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "txdc.name" . }}-dataplane
+{{- define "conxdc.dataplane.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "conxdc.name" . }}-dataplane
 app.kubernetes.io/instance: {{ .Release.Name }}-dataplane
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "txdc.controlplane.serviceaccount.name" -}}
+{{- define "conxdc.controlplane.serviceaccount.name" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "txdc.fullname" . ) .Values.serviceAccount.name }}
+{{- default (include "conxdc.fullname" . ) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -99,9 +99,9 @@ Create the name of the service account to use
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "txdc.dataplane.serviceaccount.name" -}}
+{{- define "conxdc.dataplane.serviceaccount.name" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "txdc.fullname" . ) .Values.serviceAccount.name }}
+{{- default (include "conxdc.fullname" . ) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -110,7 +110,7 @@ Create the name of the service account to use
 {{/*
 Control DSP URL
 */}}
-{{- define "txdc.controlplane.url.protocol" -}}
+{{- define "conxdc.controlplane.url.protocol" -}}
 {{- if .Values.controlplane.url.protocol }}{{/* if dsp api url has been specified explicitly */}}
 {{- .Values.controlplane.url.protocol }}
 {{- else }}{{/* else when dsp api url has not been specified explicitly */}}
@@ -122,7 +122,7 @@ Control DSP URL
 {{- printf "http://%s" .hostname -}}
 {{- end }}{{/* end if tls */}}
 {{- else }}{{/* else when ingress not enabled */}}
-{{- printf "http://%s-controlplane:%v" ( include "txdc.fullname" $ ) $.Values.controlplane.endpoints.protocol.port -}}
+{{- printf "http://%s-controlplane:%v" ( include "conxdc.fullname" $ ) $.Values.controlplane.endpoints.protocol.port -}}
 {{- end }}{{/* end if ingress */}}
 {{- end }}{{/* end with ingress */}}
 {{- end }}{{/* end if .Values.controlplane.url.protocol */}}
@@ -131,28 +131,28 @@ Control DSP URL
 {{/*
 Validation URL
 */}}
-{{- define "txdc.controlplane.url.validation" -}}
-{{- printf "%s/token" ( include "txdc.controlplane.url.control" $ ) -}}
+{{- define "conxdc.controlplane.url.validation" -}}
+{{- printf "%s/token" ( include "conxdc.controlplane.url.control" $ ) -}}
 {{- end }}
 
 {{/*
 Control Plane Control URL
 */}}
-{{- define "txdc.controlplane.url.control" -}}
-{{- printf "http://%s-controlplane:%v%s" ( include "txdc.fullname" $ ) $.Values.controlplane.endpoints.control.port $.Values.controlplane.endpoints.control.path -}}
+{{- define "conxdc.controlplane.url.control" -}}
+{{- printf "http://%s-controlplane:%v%s" ( include "conxdc.fullname" $ ) $.Values.controlplane.endpoints.control.port $.Values.controlplane.endpoints.control.path -}}
 {{- end }}
 
 {{/*
 Data Plane Control URL
 */}}
-{{- define "txdc.dataplane.url.control" -}}
-{{- printf "http://%s-dataplane:%v%s" ( include "txdc.fullname" $ ) $.Values.dataplane.endpoints.control.port $.Values.dataplane.endpoints.control.path -}}
+{{- define "conxdc.dataplane.url.control" -}}
+{{- printf "http://%s-dataplane:%v%s" ( include "conxdc.fullname" $ ) $.Values.dataplane.endpoints.control.port $.Values.dataplane.endpoints.control.path -}}
 {{- end }}
 
 {{/*
 Data Public URL
 */}}
-{{- define "txdc.dataplane.url.public" -}}
+{{- define "conxdc.dataplane.url.public" -}}
 {{- if .Values.dataplane.url.public }}{{/* if public api url has been specified explicitly */}}
 {{- .Values.dataplane.url.public }}
 {{- else }}{{/* else when public api url has not been specified explicitly */}}
@@ -164,7 +164,7 @@ Data Public URL
 {{- printf "http://%s%s" .hostname $.Values.dataplane.endpoints.public.path -}}
 {{- end }}{{/* end if tls */}}
 {{- else }}{{/* else when ingress not enabled */}}
-{{- printf "http://%s-dataplane:%v%s" (include "txdc.fullname" $ ) $.Values.dataplane.endpoints.public.port $.Values.dataplane.endpoints.public.path -}}
+{{- printf "http://%s-dataplane:%v%s" (include "conxdc.fullname" $ ) $.Values.dataplane.endpoints.public.port $.Values.dataplane.endpoints.public.path -}}
 {{- end }}{{/* end if ingress */}}
 {{- end }}{{/* end with ingress */}}
 {{- end }}{{/* end if .Values.dataplane.url.public */}}
@@ -173,9 +173,9 @@ Data Public URL
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "txdc.serviceAccountName" -}}
+{{- define "conxdc.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "txdc.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "conxdc.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

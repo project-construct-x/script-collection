@@ -26,16 +26,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "txdc.fullname" . }}-controlplane
+  name: {{ include "conxdc.fullname" . }}-controlplane
   labels:
-    {{- include "txdc.controlplane.labels" . | nindent 4 }}
+    {{- include "conxdc.controlplane.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.controlplane.autoscaling.enabled }}
   replicas: {{ .Values.controlplane.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "txdc.controlplane.selectorLabels" . | nindent 6 }}
+      {{- include "conxdc.controlplane.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.controlplane.podAnnotations }}
@@ -43,7 +43,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "txdc.controlplane.selectorLabels" . | nindent 8 }}
+        {{- include "conxdc.controlplane.selectorLabels" . | nindent 8 }}
         {{- with .Values.controlplane.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -52,7 +52,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "txdc.serviceAccountName" . }}
+      serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.controlplane.podSecurityContext | nindent 8 }}
       {{- if or .Values.controlplane.initContainers .Values.customCaCerts }}
@@ -208,11 +208,11 @@ spec:
             #########
 
             - name: "EDC_DSP_CALLBACK_ADDRESS"
-              value: {{ printf "%s%s" (include "txdc.controlplane.url.protocol" .) .Values.controlplane.endpoints.protocol.path | quote }}
+              value: {{ printf "%s%s" (include "conxdc.controlplane.url.protocol" .) .Values.controlplane.endpoints.protocol.path | quote }}
             - name: "EDC_OAUTH_PROVIDER_AUDIENCE"
               value: "idsc:IDS_CONNECTORS_ALL"
             - name: "EDC_OAUTH_ENDPOINT_AUDIENCE"
-              value: {{ printf "%s%s" (include "txdc.controlplane.url.protocol" . ) .Values.controlplane.endpoints.protocol.path | quote }}
+              value: {{ printf "%s%s" (include "conxdc.controlplane.url.protocol" . ) .Values.controlplane.endpoints.protocol.path | quote }}
 
             ################
             ## POSTGRESQL ##
@@ -299,7 +299,7 @@ spec:
             ######################################
 
             - name: "EDC_RUNTIME_ID"
-              value: {{ include "txdc.fullname" .}}-controlplane
+              value: {{ include "conxdc.fullname" .}}-controlplane
           {{- range $key, $value := .Values.controlplane.envValueFrom }}
             - name: {{ $key | quote }}
               valueFrom:
@@ -343,20 +343,20 @@ spec:
        {{- end}}
         - name: "configuration"
           configMap:
-            name: {{ include "txdc.fullname" . }}-controlplane
+            name: {{ include "conxdc.fullname" . }}-controlplane
             items:
               - key: "opentelemetry.properties"
                 path: "opentelemetry.properties"
         - name: "log4j2-config"
           configMap:
-            name: {{ include "txdc.fullname" . }}-log4j2
+            name: {{ include "conxdc.fullname" . }}-log4j2
             items:
               - key: "log4j2.yaml"
                 path: "log4j2.yaml"
         {{- if .Values.customCaCerts }}
         - name: custom-cacertificates
           configMap:
-            name: {{ include "txdc.fullname" . }}-custom-cacerts
+            name: {{ include "conxdc.fullname" . }}-custom-cacerts
             defaultMode: 0400
         - name: custom-cacerts
           emptyDir:

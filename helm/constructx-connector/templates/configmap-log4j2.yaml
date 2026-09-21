@@ -25,10 +25,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "txdc.fullname" . }}-log4j2
+  name: {{ include "conxdc.fullname" . }}-log4j2
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
-      {{- include "txdc.labels" . | nindent 4 }}
+      {{- include "conxdc.labels" . | nindent 4 }}
 data:
   log4j2.yaml: |-
     {{- .Values.log4j2.config | nindent 4 }}

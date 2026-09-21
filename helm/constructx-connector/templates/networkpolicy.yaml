@@ -24,13 +24,13 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "txdc.fullname" $ }}-{{ $name }}
+  name: {{ include "conxdc.fullname" $ }}-{{ $name }}
   labels:
-    {{- include (printf "txdc.%s.labels" $name) $ | nindent 4 }}
+    {{- include (printf "conxdc.%s.labels" $name) $ | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include (printf "txdc.%s.selectorLabels" $name) $ | nindent 6 }}
+      {{- include (printf "conxdc.%s.selectorLabels" $name) $ | nindent 6 }}
   ingress:
     - from:
       {{- toYaml (index $.Values.networkPolicy $name "from") | nindent 6 }}

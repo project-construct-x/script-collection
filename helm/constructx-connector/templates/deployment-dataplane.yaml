@@ -27,16 +27,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "txdc.fullname" . }}-dataplane
+  name: {{ include "conxdc.fullname" . }}-dataplane
   labels:
-    {{- include "txdc.dataplane.labels" . | nindent 4 }}
+    {{- include "conxdc.dataplane.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.dataplane.autoscaling.enabled }}
   replicas: {{ .Values.dataplane.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "txdc.dataplane.selectorLabels" . | nindent 6 }}
+      {{- include "conxdc.dataplane.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.dataplane.podAnnotations }}
@@ -44,7 +44,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "txdc.dataplane.selectorLabels" . | nindent 8 }}
+        {{- include "conxdc.dataplane.selectorLabels" . | nindent 8 }}
         {{- with .Values.dataplane.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -53,7 +53,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "txdc.serviceAccountName" . }}
+      serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.dataplane.podSecurityContext | nindent 8 }}
       {{- if or .Values.dataplane.initContainers .Values.customCaCerts }}
@@ -187,9 +187,9 @@ spec:
             - name: "WEB_HTTP_PUBLIC_PATH"
               value: {{ .Values.dataplane.endpoints.public.path | quote }}
             - name: "EDC_CONTROL_ENDPOINT"
-              value: {{ include "txdc.dataplane.url.control" . }}
+              value: {{ include "conxdc.dataplane.url.control" . }}
             - name: "EDC_DPF_SELECTOR_URL"
-              value: {{ include "txdc.controlplane.url.control" . }}/v1/dataplanes
+              value: {{ include "conxdc.controlplane.url.control" . }}/v1/dataplanes
 
             #######
             # AWS #
@@ -261,7 +261,7 @@ spec:
             ## DATA PLANE PUBLIC API
             ########################
             - name: "EDC_DATAPLANE_API_PUBLIC_BASEURL"
-              value: {{ include "txdc.dataplane.url.public" . }}
+              value: {{ include "conxdc.dataplane.url.public" . }}
 
 
             ##################
@@ -282,7 +282,7 @@ spec:
               value: {{ .Values.dataplane.token.refresh.refresh_endpoint }}
             {{- else}}
             - name: "TX_EDC_DATAPLANE_TOKEN_REFRESH_ENDPOINT"
-              value: {{ include "txdc.dataplane.url.public" . }}/token
+              value: {{ include "conxdc.dataplane.url.public" . }}/token
             {{- end}}
 
             - name: "EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS"
@@ -295,7 +295,7 @@ spec:
             ## Additional environment variables ##
             ######################################
             - name: "EDC_RUNTIME_ID"
-              value: {{ include "txdc.fullname" .}}-dataplane
+              value: {{ include "conxdc.fullname" .}}-dataplane
           {{- range $key, $value := .Values.dataplane.envValueFrom }}
             - name: {{ $key | quote }}
               valueFrom:
@@ -339,20 +339,20 @@ spec:
        {{- end}}
         - name: "configuration"
           configMap:
-            name: {{ include "txdc.fullname" . }}-dataplane
+            name: {{ include "conxdc.fullname" . }}-dataplane
             items:
               - key: "opentelemetry.properties"
                 path: "opentelemetry.properties"
         - name: "log4j2-config"
           configMap:
-            name: {{ include "txdc.fullname" . }}-log4j2
+            name: {{ include "conxdc.fullname" . }}-log4j2
             items:
               - key: "log4j2.yaml"
                 path: "log4j2.yaml"
         {{- if .Values.customCaCerts }}
         - name: custom-cacertificates
           configMap:
-            name: {{ include "txdc.fullname" . }}-custom-cacerts
+            name: {{ include "conxdc.fullname" . }}-custom-cacerts
             defaultMode: 0400
         - name: custom-cacerts
           emptyDir:

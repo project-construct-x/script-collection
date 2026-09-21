@@ -23,7 +23,7 @@ kind: Pod
 metadata:
   name: "controlplane-without-token-auth-test"
   labels:
-    {{- include "txdc.controlplane.labels" . | nindent 4 }}
+    {{- include "conxdc.controlplane.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test-failure
     "helm.sh/hook-delete-policy": {{ .Values.tests.hookDeletePolicy }}
@@ -33,7 +33,7 @@ spec:
     - name: management-api-call-without-auth
       image: curlimages/curl
       command: [ 'curl', '-X', 'GET', '--fail' ]
-      args: [ '{{- printf "http://%s-controlplane:%v%s/v3/business-partner-groups/groups" (include "txdc.fullname" $ ) $.Values.controlplane.endpoints.management.port $.Values.controlplane.endpoints.management.path -}}' ]
+      args: [ '{{- printf "http://%s-controlplane:%v%s/v3/business-partner-groups/groups" (include "conxdc.fullname" $ ) $.Values.controlplane.endpoints.management.port $.Values.controlplane.endpoints.management.path -}}' ]
   restartPolicy: Never
   securityContext:
     fsGroup: 101 # curl_group
