@@ -21,12 +21,11 @@
 
 # this configmap contains all database configuration that is required by the wallet runtime.
 
-{{ $fullName := .Values.fullnameOverride -}}
 {{- $postgresql := index .Values "postgresql" | default dict }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullName }}-datasource-config
+  name: {{ include "wallet.fullname" . }}-datasource-config
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "wallet.labels" . | nindent 4 }}

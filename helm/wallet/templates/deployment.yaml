@@ -20,7 +20,10 @@
 #  SPDX-License-Identifier: Apache-2.0
 #
 
-{{ $fullName := .Values.fullnameOverride -}}
+{{- $fullName := .Values.fullnameOverride -}}
+
+{{- include "common.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,19 +56,28 @@ spec:
       serviceAccountName: {{ include "wallet.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.wallet.podSecurityContext | nindent 8 }}
-      {{- if or .Values.wallet.initContainers .Values.customCaCerts }}
+    {{- if or .Values.wallet.initContainers .Values.customCaCerts .Values.vaultInit.autoInit.enabled }}
       initContainers:
-        {{- if .Values.wallet.initContainers }}
+      {{- if .Values.vaultInit.autoInit.enabled }}
+        - name: wait-for-app-token
+          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              until [ -f /vault-app-token/EDC_VAULT_HASHICORP_TOKEN ]; do
+                echo "waiting for scoped app token..."; sleep 3
+              done
+          volumeMounts:
+            - name: vault-app-token
+              mountPath: /vault-app-token
+              readOnly: true
+      {{- end }}
+      {{- if .Values.wallet.initContainers }}
         {{- toYaml .Values.wallet.initContainers | nindent 8 }}
-        {{- end }}
-        {{- if .Values.customCaCerts }}
+      {{- end }}
+      {{- if .Values.customCaCerts }}
         - name: custom-cacerts
-          # either use the specified image, or use the default one
-          {{- if .Values.wallet.image.repository }}
-          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
+          image: {{ include "wallet.image" . | quote }}
           imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
           command:
             - /bin/sh
@@ -85,19 +97,13 @@ spec:
               mountPath: /cacerts
             - name: custom-cacerts
               mountPath: /workdir
-        {{- end }}
       {{- end }}
+    {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.wallet.securityContext | nindent 12 }}
-          # either use the specified image, or use the default one
-          {{- if .Values.wallet.image.repository }}
-          image: "{{ .Values.wallet.image.repository }}:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "ghcr.io/project-construct-x/wallet:{{ .Values.wallet.image.tag | default .Chart.AppVersion }}"
-          {{- end }}
-
+          image: {{ include "wallet.image" . | quote }}
           imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
           ports:
           {{- range $key,$value := .Values.wallet.endpoints }}
@@ -149,6 +155,13 @@ spec:
             - name: {{ $key | quote }}
               value: {{ $value | quote }}
           {{- end }}
+          {{- if .Values.vaultInit.autoInit.enabled }}
+            - name: EDC_VAULT_HASHICORP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+                  key: EDC_VAULT_HASHICORP_TOKEN
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ $fullName }}-config
@@ -171,17 +184,17 @@ spec:
           {{- end }}
           {{- end }}
           volumeMounts:
-            {{- if .Values.customCaCerts }}
+          {{- if .Values.customCaCerts }}
             - name: custom-cacerts
               mountPath: /opt/java/openjdk/lib/security/cacerts
               subPath: cacerts
-            {{- end }}
+          {{- end }}
             - name: "tmp"
               mountPath: "/tmp"
       volumes:
         - name: "configuration"
           configMap:
-        {{- if .Values.customCaCerts }}
+      {{- if .Values.customCaCerts }}
         - name: custom-cacertificates
           configMap:
             name: {{ include "wallet.fullname" . }}-custom-cacerts
@@ -189,9 +202,15 @@ spec:
         - name: custom-cacerts
           emptyDir:
             sizeLimit: 1Mi
-        {{- end }}
+      {{- end }}
         - name: "tmp"
           emptyDir: { }
+      {{- if .Values.vaultInit.autoInit.enabled }}
+        - name: vault-app-token
+          secret:
+            secretName: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+            optional: true
+      {{- end }}
       {{- with .Values.wallet.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

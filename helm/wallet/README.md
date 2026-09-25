@@ -4,7 +4,30 @@
 ![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-informational?style=flat-square)
 
 Deploys the [Construct-X Wallet](https://github.com/project-construct-x/wallet) — an EDC IdentityHub runtime — together with a PostgreSQL database and a HashiCorp Vault instance.
+The wallet stores its cryptographic secrets in one of two backends, selected via `vaultInit.mode`:
 
+`hashicorp-dev` — bundled HashiCorp Vault in dev mode (in-memory).
+
+`hashicorp-persistent` — persistent HashiCorp Vault, optionally auto-initialised and unsealed by the chart (non-production).
+
+## Secret storage modes
+
+Secret storage is controlled by the `vaultInit.mode` key.
+
+| Mode                   | Secret Storage                                   | Secret seeding             |
+| ---------------------- | ------------------------------------------------ | -------------------------- |
+| `hashicorp-dev`        | Hashicorp Vault, required (bundled or external)  | vault-init job             |
+| `hashicorp-persistent` | Hashicorp Vault, required (bundled or external)  | vault-init job             |
+
+**Rules** (enforced at template rendering time)
+- `hashicorp-dev` requires `vault.server.dev.enabled: true`.
+- `hashicorp-persistent` requires `vault.server.dev.enabled: false`.
+- `vaultInit.autoInit.enabled: true` is valid only with `hashicorp-persistent` and
+  requires `vault.server.dataStorage.enabled: true`.
+
+> `autoInit` uses a single unseal key and stores the unseal key and root token as a
+> Kubernetes secret in the namespace — non-production only. For production use KMS
+> auto-unseal and external key management.
 
 ## Prerequisites
 
@@ -43,7 +66,7 @@ helm install wallet . -f my-override-values.yaml
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `wallet.image.repository` | string | `ghcr.io/project-construct-x/wallet` | Container image repository. |
-| `wallet.image.tag` | string | `0.17.0-1` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `wallet.image.tag` | string | `0.18.0-1` | Image tag. Defaults to `chart.appVersion` if left empty. |
 | `wallet.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
 | `wallet.initContainers` | list | `[]` | Additional init containers run before the wallet starts. |
 | `wallet.podLabels` | object | `{}` | Extra labels applied to the wallet pod. |
@@ -139,7 +162,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 
 ### `postgresql`
 
-The chart uses the Bitnami legacy PostgreSQL sub-chart.
+The chart uses the Cloudpirates PostgreSQL Chart.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -159,16 +182,43 @@ The chart uses the Bitnami legacy PostgreSQL sub-chart.
 | `vault.injector.enabled` | bool | `false` | Vault Agent Injector sidecar. Disabled — the wallet reads secrets directly via the Vault HTTP API. |
 | `vault.server.dev.enabled` | bool | `true` | Run Vault in dev mode (in-memory, no persistence). **Disable for production.** |
 | `vault.server.dev.devRootToken` | string | `root` | Root token for dev mode. Must match `vault.hashicorp.token`. |
+| `vault.server.dataStorage.enabled`  |	bool  |	`false` |	Persist Vault data. Required for `hashicorp-persistent` + `autoInit`. |
+| `vault.server.dataStorage.size` |	string  |	`1Gi`  |	Size of the Vault data PVC. |
+| `vault.server.dataStorage.storageClass`	| string	| `""`	| Storage class for the Vault data PVC. Empty = cluster default provisioner.| 
+| `vault.server.dataStorage.mountPath`  |	string  |	`/vault/data` |	Must match storage "file" { path } in the standalone config. |
+| `vault.server.auditStorage.enabled` |	bool  |	`false` |	Persist the Vault audit log (not rotated automatically).  |
+| `vault.server.auditStorage.size`	| string	| `1Gi`	| Size of the Vault audit PVC.| 
+| `vault.server.auditStorage.storageClass`	| string	| `""`	| Storage class for the audit PVC. Empty = cluster default provisioner.| 
+| `vault.server.auditStorage.mountPath` |	string  |	`/vault/audit`  |	Audit log volume mount path.  |
+| `vault.server.standalone.enabled` |	bool  |	`true` |	Enable standalone (persistent) Vault. Ignored when dev.enabled: true. |
+| `vault.server.standalone.config`	| string	| (chart default)	| Vault server HCL config (listener, storage backend, ui). The `storage "file" { path }` must match `dataStorage.mountPath`.| 
 | `vault.server.postStart` | string | `nil` | Optional post-start script executed inside the Vault container. Must be set externally. |
 | `vault.hashicorp.url` | string | `http://wallet-vault:8200` | Vault address reachable from within the cluster. |
 | `vault.hashicorp.token` | string | `root` | Vault token used by the wallet at runtime. **Change before production use.** |
 | `vault.hashicorp.timeout` | int | `30` | Vault HTTP client timeout in seconds. |
 | `vault.hashicorp.healthCheck.enabled` | bool | `true` | Whether the wallet checks Vault health on startup. |
 | `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
-| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all wallet secrets. |
-| `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the wallet and vault-init job. |
-| `vault.hashicorp.init.enabled` | bool | `true` | Run the post-install vault-init job that seeds required Vault secrets. |
-| `vault.hashicorp.init.aesKeyAlias` | string | `wallet-aes-key-alias` | Vault alias for the AES-256 encryption key. |
+| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all issuer-wallet secrets. |
+| `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the issuer-wallet and vault-init job. |
+
+### `vaultInit`
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `vaultInit.mode` | string | `hashicorp-dev` | Secret backend. One of `hashicorp-dev`, `hashicorp-persistent`. |
+| `vaultInit.enabled` | bool | `true` | Whether the vault-init job is rendered. |
+| `vaultInit.aes.enabled` | bool | `true` | Generate an AES-256 key (wallets). |
+| `vaultInit.aes.alias` | string | `wallet-aes-key-alias` | AES key alias. |
+| `vaultInit.rsa.enabled` | bool | `false` | Generate an RSA keypair (connector only; disabled here). |
+| `vaultInit.rsa.privateAlias` | string | `priv` | Vault alias of the RSA private key. |
+| `vaultInit.rsa.publicAlias` | string | `pub` | Vault alias of the RSA public key. |
+| `vaultInit.forceRegenerate` | bool | `false` | Regenerate secrets even if present. |
+| `vaultInit.image.repository` | string | `alpine` | Image of the vault-init job. |
+| `vaultInit.image.tag` | string | `3.20` | Tag of the vault-init job image. |
+| `vaultInit.autoInit.enabled` | bool | `false` | Auto-initialise and unseal a persistent Vault. `hashicorp-persistent` only. Non-production. |
+| `vaultInit.autoInit.keysSecretName` | string | `vault-keys` | Secret holding the unseal key and root token. |
+| `vaultInit.autoInit.kvMount` | string | `secret` | KV-v2 engine mount path (`vault.hashicorp.paths.secret` without leading `/v1/`). |
+| `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File audit device path. Empty to skip enabling audit. |
 
 ## Sources
 

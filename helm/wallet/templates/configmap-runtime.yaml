@@ -21,13 +21,12 @@
 
 # this configmap contains all application configuration that is required by the wallet runtime.
 
-{{ $fullName := .Values.fullnameOverride -}}
-{{- $iam := index .Values "wallet" "iam" | default dict }}
+{{- $iam := index .Values "wallet" "iam" | default dict -}}
 {{- $issuer := index .Values "wallet" "issuer" | default dict }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullName }}-config
+  name: {{ include "wallet.fullname" . }}-config
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "wallet.labels" . | nindent 4 }}
@@ -56,9 +55,9 @@ data:
   EDC_IAM_CREDENTIAL_RENEWAL_GRACEPERIOD: {{ $iam.renewalGraceperiod | default "172800" | quote }}
   EDC_ISSUER_ISSUANCE_SEND_RETRY_LIMIT: {{ $issuer.sendRetryLimit | default "0" | quote }}
 
-  ###########
-  ## VAULT ##
-  ###########
+  #####################
+  ## HASHICORP VAULT ##
+  #####################
   EDC_VAULT_HASHICORP_URL: {{ tpl .Values.vault.hashicorp.url . | quote }}
   EDC_VAULT_HASHICORP_TIMEOUT_SECONDS: {{ .Values.vault.hashicorp.timeout | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: {{ .Values.vault.hashicorp.healthCheck.enabled | quote }}
@@ -69,5 +68,5 @@ data:
   #################
   ## Encryption  ##
   #################
-  EDC_ENCRYPTION_AES_KEY_ALIAS: {{ .Values.vault.hashicorp.init.aesKeyAlias | default "wallet-aes-key-alias" | quote }}
+  EDC_ENCRYPTION_AES_KEY_ALIAS: {{ include "wallet.aesKeyAlias" . | quote }}
   EDC_ISSUER_STATUSLIST_SIGNING_KEY_ALIAS: {{ $issuer.statuslistSigningKeyAlias | default "foo" | quote }}

@@ -84,3 +84,25 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Defines Image depending on chosen Vault Mode
+*/}}
+{{- define "wallet.image" -}}
+{{- $tag := .Values.wallet.image.tag | default .Chart.AppVersion -}}
+{{- printf "%s:%s" .Values.wallet.image.repository $tag -}}
+{{- end -}}
+
+{{/*
+Defines AES-Key-Alias
+*/}}
+{{- define "wallet.aesKeyAlias" -}}
+{{- .Values.vaultInit.aes.alias | default "wallet-aes-key-alias" -}}
+{{- end -}}
+
+{{/* 
+Defines if the vault-init job for hashicorp vault does run
+*/}}
+{{- define "common.vaultInit.jobEnabled" -}}
+{{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
+{{- end -}}
