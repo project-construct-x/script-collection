@@ -19,12 +19,11 @@
 
 # this configmap contains the initialization script to generate and store aes and rsa keys into the vault.
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" -}}
-{{- $fullName := .Values.fullnameOverride }}
+{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullName }}-vault-init
+  name: {{ include "issuer-wallet.fullname" . }}-vault-init
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "issuer-wallet.labels" . | nindent 4 }}
@@ -139,7 +138,12 @@ data:
       if [ "$(curl -sS "$VAULT/v1/sys/seal-status" | jq -r '.sealed')" = "true" ]; then
         log "Unsealing Vault..."
         curl -sS -H "Content-Type: application/json" -X PUT \
-          -d "$(jq -n --arg u "$UNSEAL" '{key:$u}')" "$VAULT/v1/sys/unseal" >/dev/null
+          -d "$(jq -n --arg k "$UNSEAL" '{key:$k}')" "$VAULT/v1/sys/unseal" >/dev/null
+        if [ "$(curl -sS "$VAULT/v1/sys/seal-status" | jq -r '.sealed')" != "false" ]; then
+          log "ERROR: Vault is still sealed - the stored unseal key does not match this Vault. The PVC and the keys secret may belong to different Vault instances."
+          exit 1
+        fi
+        log "Vault unsealed."
       fi
 
       # set root token to global token variable
