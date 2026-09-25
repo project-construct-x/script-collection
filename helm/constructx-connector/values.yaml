@@ -1,4 +1,5 @@
 #################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
 #  Copyright (c) 2026 ARENA2036 e.V.
 #
 #  See the NOTICE file(s) distributed with this work for additional
@@ -269,23 +270,6 @@ controlplane:
 
     # -- Extra environment variables that will be passed onto deployment pods
     env:
-        EDC_IAM_DID_WEB_USE_HTTPS: true
-        TX_EDC_POSTGRESQL_MIGRATION_ASSET_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_AGREEMENTBPNS_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_BPN_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_CONTRACTDEFINITION_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_CONTRACTNEGOTIATION_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_DATAPLANEINSTANCE_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_EDR_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_FEDERATEDCATALOG_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_JTI-VALIDATION_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_POLICY-MONITOR_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_POLICY_ENABLED: false
-        TX_EDC_POSTGRESQL_MIGRATION_TRANSFERPROCESS_ENABLED: false
-        EDC_IAM_CREDENTIAL_REVOCATION_MIMETYPE: application/json
-        TX_EDC_IAM_IATP_DEFAULT-SCOPES_TEST_ALIAS: org.eclipse.dspace.dcp.vc.type
-        TX_EDC_IAM_IATP_DEFAULT-SCOPES_TEST_TYPE: MembershipCredential
-        TX_EDC_IAM_IATP_DEFAULT-SCOPES_TEST_OPERATION: read
 
     # -- "valueFrom" environment variable references that will be added to deployment pods. Name is templated.
     # ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvarsource-v1-core
@@ -524,12 +508,6 @@ dataplane:
             expiry_tolerance_seconds: 10
             # -- Optional endpoint for an OAuth2 token refresh. Default endpoint is `<PUBLIC_API>/token`
             refresh_endpoint:
-        signer:
-            # -- Alias under which the private key (JWK or PEM format) is stored in the vault
-            privatekey_alias: priv
-        verifier:
-            # -- Alias under which the public key (JWK or PEM format) is stored in the vault, that belongs to the private key which was referred to at `dataplane.token.signer.privatekey_alias`
-            publickey_alias: pub
 
     # Database schema auto-creation
     schema:
@@ -574,9 +552,6 @@ dataplane:
 
     # -- Extra environment variables that will be passed onto deployment pods
     env:
-        EDC_IAM_DID_WEB_USE_HTTPS: true
-        EDC_DATA_PLANE_SELF_UNREGISTRATION: true
-        EDC_IAM_CREDENTIAL_REVOCATION_MIMETYPE: application/json
 
     # -- "valueFrom" environment variable references that will be added to deployment pods. Name is templated.
     # ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvarsource-v1-core
@@ -725,27 +700,95 @@ postgresql:
             memory: 256Mi
 
 vault:
-    injector:
-        enabled: false
-    server:
-        dev:
-            enabled: true
-            devRootToken: "root"
-        postStart:  # must be set externally!
-    hashicorp:
-        url: "http://{{ .Release.Name }}-vault:8200"
-        token: "root"
-        timeout: 30
-        healthCheck:
-            enabled: true
-            standbyOk: true
-        paths:
-            secret: /v1/secret
-            health: /v1/sys/health
-            folder: ""
-        init:
-            # Whether to run the post-install vault-init job that seeds required secrets. Creates RSA Keys for dataplane.token.signer and dataplane.token.verifier.
-            enabled: false
+  injector:
+    enabled: false
+  server:
+    dev:
+      # Run Vault in dev mode. All data is stored in memory and lost on pod restart.
+      # Disable for production and configure a persistent storage backend instead.
+      enabled: true
+      # Root token used when dev mode is active. Must match vault.hashicorp.token.
+      devRootToken: "root"
+    # Persistent Vault data volume for non-dev mode. Enable if vaultInit.mode=hashicorp-persistent.
+    dataStorage:
+      enabled: false
+      size: 1Gi
+      storageClass: ""
+      # Must match the storage "file" { path } in the vault.server.standalone.config HCL below
+      mountPath: /vault/data
+    # Persistent audit log volume. Recommended for non-dev mode.
+    # NOTE: not rotated automatically, blocks vault when full.
+    auditStorage:
+      enabled: false
+      size: 1Gi
+      storageClass: ""
+      mountPath: /vault/audit
+    standalone:
+      enabled: true
+      # Vault HCL config. 
+      # tls_disable = 1 for cluster-internal use only; otherwise use --cacert in the script
+      # path = "/vault/data" must match vault.server.dataStorage.mountPath
+      config: |
+        ui = true
+        listener "tcp" {
+          address     = "[::]:8200"
+          tls_disable = 1
+        }
+        storage "file" {
+          path = "/vault/data"
+        }
+    # Optional post-start hook script executed inside the Vault container after startup.
+    # Can be used to initialise the KV engine or apply policies. Must be set externally.
+    postStart: 
+  hashicorp:
+    # URL of the Vault instance reachable from within the cluster.
+    url: "http://{{ .Release.Name }}-vault:8200"
+    # Vault token used by the wallet at runtime to read and write secrets.
+    # If vault.server.dev.enabled is true vault.hashicorp.token match with vault.server.dev.devRootToken.
+    token: "root"
+    # Timeout in seconds for Vault HTTP requests.
+    timeout: 30
+    healthCheck:
+      enabled: true
+      standbyOk: true
+    paths:
+      # Mount path used for all wallet secrets
+      secret: /v1/secret
+      # Health endpoint polled by the wallet and the vault-init job
+      health: /v1/sys/health
+
+vaultInit:
+  # Sets vault initialization mode: hashicorp-dev | hashicorp-persistent
+  mode: hashicorp-dev
+  # Whether the vault-init job is rendered.
+  enabled: true
+  # AES key request (wallets). Disabled for the connector.
+  aes:
+    enabled: false
+  # RSA keypair request (connector). Disabled for the wallets.
+  rsa:
+    enabled: true
+    # Alias of the private key stored in the vault.
+    privateAlias: "priv"
+    # Alias of the public key stored in the vault.
+    publicAlias: "pub"
+  # Regenerate secrets even if they already exist.
+  forceRegenerate: false
+  # Image for the vault-init job.
+  image:
+    repository: "alpine"
+    tag: "3.20"
+  # Automatic init/unseal of a persistent Vault. Only for mode=hashicorp-persistent.
+  # Non-prod only (single unseal key, keys stored as a cluster Secret).
+  autoInit:
+    enabled: false
+    # Name of the Kubernetes Secret the unseal key and root token are stored in.
+    keysSecretName: "connector-vault-keys"
+    # KV-v2 secrets engine mount path (without leading /v1/). Must match vault.hashicorp.paths.secret.
+    kvMount: "secret"
+    # File path for the audit device. Must reside within vault.server.auditStorage.mountPath.
+    # Leave empty to skip enabling the audit device.
+    auditPath: "/vault/audit/audit.log"
 
 networkPolicy:
     # -- If `true` network policy will be created to restrict access to control- and dataplane
@@ -764,6 +807,8 @@ networkPolicy:
 serviceAccount:
     # -- Specifies whether a service account should be created
     create: true
+    # Automatically mount a ServiceAccount's API credentials?
+    automount: true
     # -- Annotations to add to the service account
     annotations: {}
     # -- The name of the service account to use.

@@ -180,3 +180,23 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/* 
+Defines mapping for RSA Key Aliases
+*/}}
+{{- define "conxdc.signerAlias"   -}}{{ .Values.vaultInit.rsa.privateAlias | default "priv" }}{{- end -}}
+{{- define "conxdc.verifierAlias" -}}{{ .Values.vaultInit.rsa.publicAlias | default "pub"  }}{{- end -}}
+
+{{/* 
+Defines if the vault-init job for hashicorp vault does run
+*/}}
+{{- define "common.vaultInit.jobEnabled" -}}
+{{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
+{{- end -}}
+
+{{/* 
+Defines Vault Token Secret Name for autoInit
+*/}}
+{{- define "conxdc.appTokenSecretName" -}}
+{{- printf "%s-vault-deployment-token" .Values.fullnameOverride -}}
+{{- end -}}

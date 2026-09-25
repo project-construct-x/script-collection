@@ -21,14 +21,14 @@
 #################################################################################
 
 
-{{- $fullName := include "conxdc.fullname" . }}
-{{- $dataLabels := include "conxdc.dataplane.labels" . }}
-{{- $dataEdcEndpoints := .Values.dataplane.endpoints }}
-{{- $namespace := .Release.Namespace }}
+{{- $fullName := include "conxdc.fullname" . -}}
+{{- $dataLabels := include "conxdc.dataplane.labels" . -}}
+{{- $dataEdcEndpoints := .Values.dataplane.endpoints -}}
+{{- $namespace := .Release.Namespace -}}
 
-{{- range .Values.dataplane.ingresses }}
-{{- if and .enabled .endpoints }}
-{{- $dataIngressName := printf "%s-dataplane-%s" $fullName .hostname }}
+{{- range .Values.dataplane.ingresses -}}
+{{- if and .enabled .endpoints -}}
+{{- $dataIngressName := printf "%s-dataplane-%s" $fullName .hostname -}}
 {{- $annotations := .annotations | default dict }}
 ---
 apiVersion: networking.k8s.io/v1

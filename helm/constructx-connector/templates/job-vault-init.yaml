@@ -17,8 +17,9 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{ if .Values.vault.hashicorp.init.enabled -}}
-{{- $fullName := .Values.fullnameOverride -}}
+{{- if eq (include "common.vaultInit.jobEnabled" .) "true" -}}
+{{- $fullName := include "conxdc.fullname" . }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -41,10 +42,13 @@ spec:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
+{{- if .Values.vaultInit.autoInit.enabled }}
+      # Ensure that SA Token is mounted
+      automountServiceAccountToken: true
+{{- end }}
       containers:
         - name: vault-init
-          {{- $img := index .Values "vault" "hashicorp" "init" "image" | default dict }}
-          image: {{ $img.repository | default "alpine" }}:{{ $img.tag | default "3.20" }}
+          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -54,27 +58,44 @@ spec:
             - name: VAULT_ADDR
               value: {{ tpl .Values.vault.hashicorp.url . | quote }}
             - name: VAULT_TOKEN
-              value: {{ .Values.vault.hashicorp.token | required "vault.hashicorp.token is required" }}
+              value: {{ .Values.vault.hashicorp.token | quote }}
             - name: VAULT_SECRET_PATH
               value: {{ .Values.vault.hashicorp.paths.secret | quote }}
             - name: VAULT_HEALTH_PATH
               value: {{ .Values.vault.hashicorp.paths.health | quote }}
-            {{- with .Values.vault.hashicorp.init.forceRegenerate }}
             - name: FORCE_REGENERATE
-              value: {{ . | quote }}
-            {{- end }}
-            {{- with .Values.vault.hashicorp.init.aesKeyAlias }}
-            - name: AES_KEY_ALIAS
-              value: {{ . | quote }}
-            {{- end }}
-            {{- with .Values.dataplane.token.signer.privatekey_alias }}
-            - name: PRIVATE_KEY_ALIAS
-              value: {{ . | quote }}
-            {{- end }}
-            {{- with .Values.dataplane.token.verifier.publickey_alias }}
-            - name: PUBLIC_KEY_ALIAS
-              value: {{ . | quote }}
-            {{- end }}
+              value: {{ .Values.vaultInit.forceRegenerate | quote }}
+            # --- AES ---
+            - name: AES_ENABLED
+              value: {{ .Values.vaultInit.aes.enabled | quote }}
+            - name: AES_ALIAS
+              value: {{ .Values.vaultInit.aes.alias | default "" | quote }}
+            # --- RSA ---
+            - name: RSA_ENABLED
+              value: {{ .Values.vaultInit.rsa.enabled | quote }}
+            - name: RSA_PRIV_ALIAS
+              value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
+            - name: RSA_PUB_ALIAS
+              value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
+          {{- if .Values.vaultInit.autoInit.enabled }}
+            # --- Auto-Init (hashicorp-persistent mode only) ---
+            - name: AUTO_INIT
+              value: "true"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KEYS_SECRET_NAME
+              value: {{ .Values.vaultInit.autoInit.keysSecretName | quote }}
+            - name: KV_MOUNT
+              value: {{ .Values.vaultInit.autoInit.kvMount | quote }}
+            - name: AUDIT_PATH
+              value: {{ .Values.vaultInit.autoInit.auditPath | quote }}
+            - name: APP_TOKEN_SECRET_NAME
+              value: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride | quote }}
+            - name: APP_POLICY_NAME
+              value: "deployment"
+          {{- end }}
           volumeMounts:
             - name: script
               mountPath: /scripts
