@@ -1,312 +1,440 @@
-# constructx-connector
+# Construct-X Connector
 
-![Version: 0.13.0-SNAPSHOT](https://img.shields.io/badge/Version-0.13.0--SNAPSHOT-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.13.0-SNAPSHOT](https://img.shields.io/badge/AppVersion-0.13.0--SNAPSHOT-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-informational?style=flat-square)
 
-A Helm chart for Tractus-X Eclipse Data Space Connector. The connector deployment consists of two runtime consists of a
-Control Plane and a Data Plane. Note that _no_ external dependencies such as a PostgreSQL database and HashiCorp Vault are included.
+Deploys a Construct-X Connector — an Eclipse Dataspace Components (EDC) runtime
+consisting of a **control plane** and a **data plane** — together with a
+PostgreSQL database and a HashiCorp Vault instance.
+The wallet stores its cryptographic secrets in one of two backends, selected via `vaultInit.mode`:
 
-This chart is intended for use with an _existing_ PostgreSQL database and an _existing_ HashiCorp Vault.
+`hashicorp-dev` — bundled HashiCorp Vault in dev mode (in-memory).
 
-**Homepage:** <https://github.com/eclipse-tractusx/tractusx-edc/tree/main/charts/tractusx-connector>
+`hashicorp-persistent` — persistent HashiCorp Vault, optionally auto-initialised and unsealed by the chart (non-production).
 
-## Setting up IATP
+## Secret storage modes
 
-### Preconditions
+Secret storage is controlled by the `vaultInit.mode` key.
 
-- You'll need an account with DIV, the wallet for VerifiableCredentials
-- the necessary set of VerifiableCredentials for this participant must already be issued to your DIV tenant. This is typically done by the
-  Portal during participant onboarding
-- the client ID and client secret corresponding to that account must be known
+| Mode                   | Secret storage       | Init / unseal                                 | Survives pod restart |
+| ---------------------- | -------------------- | --------------------------------------------- | -------------------- |
+| `hashicorp-dev`        | in-memory            | none — fixed dev root token                   | no                   |
+| `hashicorp-persistent` | PVC                  | manual, or automatic via `vaultInit.autoInit` | yes                  |
 
-### Preparatory work
 
-- store client secret in the HashiCorp vault using an alias. The exact procedure will depend on your deployment of HashiCorp Vault and
-  is out of scope of this document. But by default, Tractus-X EDC expects to find the secret under `secret/client-secret`. The alias must be configured
-  using the `iatp.sts.oauth.client.secret_alias` Helm value.
+**Rules** (enforced at template rendering time)
+- `hashicorp-dev` requires `vault.server.dev.enabled=true`, and
+`vault.hashicorp.token` **must equal** `vault.server.dev.devRootToken` —
+the runtimes authenticate with the dev root token.
+- `hashicorp-persistent` requires `vault.server.dev.enabled=false`.
+- `vaultInit.autoInit.enabled=true` is only valid with `hashicorp-persistent`
+and requires `vault.server.dataStorage.enabled=true`.
+- `autoInit` requires a ServiceAccount with `automountServiceAccountToken=true`
+(either `serviceAccount.create=true` + `serviceAccount.automount=true`, or a
+pre-created `serviceAccount.name`).
+- `vaultInit.aes.enabled=true` is rejected — the connector seeds RSA only.
+The `aes` block exists solely to keep the schema uniform across charts.
 
-### Configure the chart
+### Secret seeding
 
-Be sure to provide the following configuration entries to your Tractus-X EDC Helm chart:
-- `iatp.sts.oauth.token_url`: the token endpoint of DIV
-- `iatp.sts.oauth.client.id`: the client ID of your tenant in DIV
-- `iatp.sts.oauth.client.secret_alias`: alias under which you saved your DIV client secret in the vault
-- `iatp.sts.div.url`: the base URL for DIV
+When enabled, the `vault-init` job runs in both modes as a `post-install,post-upgrade` hook
+and seeds the data plane token keypair into the Vault:
 
-In addition, in order to map BPNs to DIDs, a new service is required, called the BPN-DID Resolution Service, which
-must be configured:
-- `controlplane.bdrs.server.url`: base URL of the BPN-DID Resolution Service ("BDRS")
 
-### Launching the application
+| Alias value                  | Purpose                       |
+| ---------------------------- | ----------------------------- |
+| `vaultInit.rsa.privateAlias` | data plane token **signer**   |
+| `vaultInit.rsa.publicAlias`  | data plane token **verifier** |
 
-As an easy starting point, please consider using [this example configuration](https://github.com/eclipse-tractusx/tractusx-edc/blob/main/edc-tests/deployment/src/main/resources/helm/tractusx-connector-test.yaml)
-to launch the application. The configuration values mentioned above (`controlplane.ssi.*`) will have to be adapted manually.
-Combined, run this shell command to start the in-memory Tractus-X EDC runtime:
 
-```shell
-helm repo add tractusx-edc https://eclipse-tractusx.github.io/charts/dev
-helm install my-release tractusx-edc/tractusx-connector --version 0.13.0-SNAPSHOT \
-     -f <path-to>/tractusx-connector-test.yaml
+Existing secrets are not overwritten unless `vaultInit.forceRegenerate=true`.
+
+The **DIV client secret** (`iatp.sts.oauth.client.secret_alias`) is *not* seeded
+by the chart. It must maually be placed in the Vault under that alias.
+
+### autoInit (persistent mode)
+
+With `vaultInit.autoInit.enabled=true` the job additionally initialises the
+Vault (`secret_shares=1`, `secret_threshold=1`), unseals it, enables the KV-v2
+mount and a file audit device, and creates a **scoped app token** restricted to the configured KV mount.
+
+Two separate Kubernetes secrets are produced:
+
+
+| Secret                              | Contents                | Consumed by          |
+| ----------------------------------- | ----------------------- | -------------------- |
+| `vaultInit.autoInit.keysSecretName` | unseal key + root token | the init job only    |
+| `<fullname>-vault-deployment-token` | scoped app token        | control + data plane |
+
+
+With `autoInit` enabled, `EDC_VAULT_HASHICORP_TOKEN` is injected into both
+deployments via `secretKeyRef` instead of being taken from
+`vault.hashicorp.token`.
+
+> **autoInit is not production safe.** A single unseal key and the root token
+> are stored as a Kubernetes secret in the release namespace. The Vault is
+> sealed again after a pod restart and is *not* unsealed automatically. For
+> production use KMS auto-unseal and external key management, and keep
+> `autoInit.enabled=false`.
+
+## Prerequisites
+
+| Requirement | Version |
+|-------------|---------|
+| Kubernetes  | 1.29+   |
+| Helm        | 3.14+   |
+
+- A Persistent Volume provisioner is required if `postgresql.primary.persistence.enabled: true` and/or `vaultInit.mode=hashicorp-persistent`
+- Cluster Internet connection is required when the vault-init job runs (`vaultInit.enabled: true`), so it can pull the required `apk` packages.
+
+## Installation
+
+```bash
+# Add dependencies
+helm dependency build
+# Install
+helm install connector . -f my-override-values.yaml
 ```
-
-## Source Code
-
-* <https://github.com/eclipse-tractusx/tractusx-edc/tree/main/charts/tractusx-connector>
-
-## Requirements
-
-| Repository | Name | Version |
-|------------|------|---------|
-| https://charts.bitnami.com/bitnami | postgresql(postgresql) | 15.2.1 |
-| https://helm.releases.hashicorp.com | vault(vault) | 0.27.0 |
 
 ## Values
 
+### Top-level
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| controlplane.affinity | object | `{}` | [affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) to configure which nodes the pods can be scheduled on |
-| controlplane.autoscaling.enabled | bool | `false` | Enables [horizontal pod autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) |
-| controlplane.autoscaling.maxReplicas | int | `100` | Maximum replicas if resource consumption exceeds resource threshholds |
-| controlplane.autoscaling.minReplicas | int | `1` | Minimal replicas if resource consumption falls below resource threshholds |
-| controlplane.autoscaling.targetCPUUtilizationPercentage | int | `80` | targetAverageUtilization of cpu provided to a pod |
-| controlplane.autoscaling.targetMemoryUtilizationPercentage | int | `80` | targetAverageUtilization of memory provided to a pod |
-| controlplane.bdrs.cache_validity_seconds | int | `600` | Time that a cached BPN/DID resolution map is valid in seconds, default is 600 seconds (10 min) |
-| controlplane.bdrs.server.url | string | `nil` | URL of the BPN/DID Resolution Service |
-| controlplane.debug.enabled | bool | `false` | Enables java debugging mode. |
-| controlplane.debug.port | int | `1044` | Port where the debuggee can connect to. |
-| controlplane.debug.suspendOnStart | bool | `false` | Defines if the JVM should wait with starting the application until someone connected to the debugging port. |
-| controlplane.endpoints | object | `{"control":{"path":"/control","port":8083},"default":{"path":"/api","port":8080},"management":{"authKey":"password","jwksUrl":null,"path":"/management","port":8081},"metrics":{"path":"/metrics","port":9090},"protocol":{"path":"/api/v1/dsp","port":8084}}` | endpoints of the control plane |
-| controlplane.endpoints.control | object | `{"path":"/control","port":8083}` | control api, used for internal control calls. can be added to the internal ingress, but should probably not |
-| controlplane.endpoints.control.path | string | `"/control"` | path for incoming api calls |
-| controlplane.endpoints.control.port | int | `8083` | port for incoming api calls |
-| controlplane.endpoints.default | object | `{"path":"/api","port":8080}` | default api for health checks, should not be added to any ingress |
-| controlplane.endpoints.default.path | string | `"/api"` | path for incoming api calls |
-| controlplane.endpoints.default.port | int | `8080` | port for incoming api calls |
-| controlplane.endpoints.management | object | `{"authKey":"password","jwksUrl":null,"path":"/management","port":8081}` | data management api, used by internal users, can be added to an ingress and must not be internet facing |
-| controlplane.endpoints.management.authKey | string | `"password"` | authentication key, must be attached to each request as `X-Api-Key` header |
-| controlplane.endpoints.management.jwksUrl | string | `nil` | if the JWKS url is set, the DelegatedAuth service will be engaged |
-| controlplane.endpoints.management.path | string | `"/management"` | path for incoming api calls |
-| controlplane.endpoints.management.port | int | `8081` | port for incoming api calls |
-| controlplane.endpoints.metrics | object | `{"path":"/metrics","port":9090}` | metrics api, used for application metrics, must not be internet facing |
-| controlplane.endpoints.metrics.path | string | `"/metrics"` | path for incoming api calls |
-| controlplane.endpoints.metrics.port | int | `9090` | port for incoming api calls |
-| controlplane.endpoints.protocol | object | `{"path":"/api/v1/dsp","port":8084}` | dsp api, used for inter connector communication and must be internet facing |
-| controlplane.endpoints.protocol.path | string | `"/api/v1/dsp"` | path for incoming api calls |
-| controlplane.endpoints.protocol.port | int | `8084` | port for incoming api calls |
-| controlplane.env | object | `{}` | Extra environment variables that will be pass onto deployment pods |
-| controlplane.envConfigMapNames | list | `[]` | [Kubernetes ConfigMap Resource](https://kubernetes.io/docs/concepts/configuration/configmap/) names to load environment variables from |
-| controlplane.envSecretNames | list | `[]` | [Kubernetes Secret Resource](https://kubernetes.io/docs/concepts/configuration/secret/) names to load environment variables from |
-| controlplane.envValueFrom | object | `{}` | "valueFrom" environment variable references that will be added to deployment pods. Name is templated. ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvarsource-v1-core |
-| controlplane.image.pullPolicy | string | `"IfNotPresent"` | [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use |
-| controlplane.image.repository | string | `""` | Which derivate of the control plane to use. When left empty the deployment will select the correct image automatically |
-| controlplane.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion |
-| controlplane.ingresses[0].annotations | object | `{}` | Additional ingress annotations to add |
-| controlplane.ingresses[0].certManager.clusterIssuer | string | `""` | If preset enables certificate generation via cert-manager cluster-wide issuer |
-| controlplane.ingresses[0].certManager.issuer | string | `""` | If preset enables certificate generation via cert-manager namespace scoped issuer |
-| controlplane.ingresses[0].className | string | `""` | Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use |
-| controlplane.ingresses[0].enabled | bool | `false` |  |
-| controlplane.ingresses[0].endpoints | list | `["protocol"]` | EDC endpoints exposed by this ingress resource |
-| controlplane.ingresses[0].hostname | string | `"edc-control.local"` | The hostname to be used to precisely map incoming traffic onto the underlying network service |
-| controlplane.ingresses[0].tls | object | `{"enabled":false,"secretName":""}` | TLS [tls class](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) applied to the ingress resource |
-| controlplane.ingresses[0].tls.enabled | bool | `false` | Enables TLS on the ingress resource |
-| controlplane.ingresses[0].tls.secretName | string | `""` | If present overwrites the default secret name |
-| controlplane.ingresses[1].annotations | object | `{}` | Additional ingress annotations to add |
-| controlplane.ingresses[1].certManager.clusterIssuer | string | `""` | If preset enables certificate generation via cert-manager cluster-wide issuer |
-| controlplane.ingresses[1].certManager.issuer | string | `""` | If preset enables certificate generation via cert-manager namespace scoped issuer |
-| controlplane.ingresses[1].className | string | `""` | Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use |
-| controlplane.ingresses[1].enabled | bool | `false` |  |
-| controlplane.ingresses[1].endpoints | list | `["management","control"]` | EDC endpoints exposed by this ingress resource |
-| controlplane.ingresses[1].hostname | string | `"edc-control.intranet"` | The hostname to be used to precisely map incoming traffic onto the underlying network service |
-| controlplane.ingresses[1].tls | object | `{"enabled":false,"secretName":""}` | TLS [tls class](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) applied to the ingress resource |
-| controlplane.ingresses[1].tls.enabled | bool | `false` | Enables TLS on the ingress resource |
-| controlplane.ingresses[1].tls.secretName | string | `""` | If present overwrites the default secret name |
-| controlplane.initContainers | list | `[]` |  |
-| controlplane.livenessProbe.enabled | bool | `true` | Whether to enable kubernetes [liveness-probe](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-| controlplane.livenessProbe.failureThreshold | int | `6` | when a probe fails kubernetes will try 6 times before giving up |
-| controlplane.livenessProbe.initialDelaySeconds | int | `30` | seconds to wait before performing the first liveness check |
-| controlplane.livenessProbe.periodSeconds | int | `10` | this fields specifies that kubernetes should perform a liveness check every 10 seconds |
-| controlplane.livenessProbe.successThreshold | int | `1` | number of consecutive successes for the probe to be considered successful after having failed |
-| controlplane.livenessProbe.timeoutSeconds | int | `5` | number of seconds after which the probe times out |
-| controlplane.logs.level | string | `"DEBUG"` | Defines the log granularity of the default Console Monitor. |
-| controlplane.nodeSelector | object | `{}` | [node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) to constrain pods to nodes |
-| controlplane.opentelemetry | string | `"otel.javaagent.enabled=false\notel.javaagent.debug=false"` | configuration of the [Open Telemetry Agent](https://opentelemetry.io/docs/instrumentation/java/automatic/agent-config/) to collect and expose metrics |
-| controlplane.podAnnotations | object | `{}` | additional annotations for the pod |
-| controlplane.podLabels | object | `{}` | additional labels for the pod |
-| controlplane.podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsUser":10001,"seccompProfile":{"type":"RuntimeDefault"}}` | The [pod security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) defines privilege and access control settings for a Pod within the deployment |
-| controlplane.podSecurityContext.fsGroup | int | `10001` | The owner for volumes and any files created within volumes will belong to this guid |
-| controlplane.podSecurityContext.runAsGroup | int | `10001` | Processes within a pod will belong to this guid |
-| controlplane.podSecurityContext.runAsUser | int | `10001` | Runs all processes within a pod with a special uid |
-| controlplane.podSecurityContext.seccompProfile.type | string | `"RuntimeDefault"` | Restrict a Container's Syscalls with seccomp |
-| controlplane.policy | object | `{"validation":{"enabled":true}}` | configuration for policy engine |
-| controlplane.readinessProbe.enabled | bool | `true` | Whether to enable kubernetes [readiness-probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-| controlplane.readinessProbe.failureThreshold | int | `6` | when a probe fails kubernetes will try 6 times before giving up |
-| controlplane.readinessProbe.initialDelaySeconds | int | `30` | seconds to wait before performing the first readiness check |
-| controlplane.readinessProbe.periodSeconds | int | `10` | this fields specifies that kubernetes should perform a readiness check every 10 seconds |
-| controlplane.readinessProbe.successThreshold | int | `1` | number of consecutive successes for the probe to be considered successful after having failed |
-| controlplane.readinessProbe.timeoutSeconds | int | `5` | number of seconds after which the probe times out |
-| controlplane.replicaCount | int | `1` |  |
-| controlplane.resources | object | `{"limits":{"cpu":1.5,"memory":"1024Mi"},"requests":{"cpu":"500m","memory":"1024Mi"}}` | [resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for the container |
-| controlplane.resources.limits.cpu | float | `1.5` | Maximum CPU limit |
-| controlplane.resources.limits.memory | string | `"1024Mi"` | Maximum memory limit |
-| controlplane.resources.requests.cpu | string | `"500m"` | Initial CPU request |
-| controlplane.resources.requests.memory | string | `"1024Mi"` | Initial memory request |
-| controlplane.securityContext.allowPrivilegeEscalation | bool | `false` | Controls [Privilege Escalation](https://kubernetes.io/docs/concepts/security/pod-security-policy/#privilege-escalation) enabling setuid binaries changing the effective user ID |
-| controlplane.securityContext.capabilities.add | list | `[]` | Specifies which capabilities to add to issue specialized syscalls |
-| controlplane.securityContext.capabilities.drop | list | `["ALL"]` | Specifies which capabilities to drop to reduce syscall attack surface |
-| controlplane.securityContext.readOnlyRootFilesystem | bool | `true` | Whether the root filesystem is mounted in read-only mode |
-| controlplane.securityContext.runAsNonRoot | bool | `true` | Requires the container to run without root privileges |
-| controlplane.securityContext.runAsUser | int | `10001` | The container's process will run with the specified uid |
-| controlplane.service.annotations | object | `{}` | additional annotations for the service |
-| controlplane.service.labels | object | `{}` | additional labels for the service |
-| controlplane.service.type | string | `"ClusterIP"` | [Service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) to expose the running application on a set of Pods as a network service. |
-| controlplane.tolerations | list | `[]` | [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) to configure preferred nodes |
-| controlplane.url.protocol | string | `""` | Explicitly declared url for reaching the dsp api (e.g. if ingresses not used) |
-| controlplane.volumeMounts | string | `nil` | declare where to mount [volumes](https://kubernetes.io/docs/concepts/storage/volumes/) into the container |
-| controlplane.volumes | string | `nil` | [volume](https://kubernetes.io/docs/concepts/storage/volumes/) directories |
-| customCaCerts | object | `{}` | Add custom ca certificates to the truststore |
-| customLabels | object | `{}` | Add some custom labels |
-| dataplane.affinity | object | `{}` | [affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) to configure which nodes the pods can be scheduled on |
-| dataplane.autoscaling.enabled | bool | `false` | Enables [horizontal pod autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) |
-| dataplane.autoscaling.maxReplicas | int | `100` | Maximum replicas if resource consumption exceeds resource threshholds |
-| dataplane.autoscaling.minReplicas | int | `1` | Minimal replicas if resource consumption falls below resource threshholds |
-| dataplane.autoscaling.targetCPUUtilizationPercentage | int | `80` | targetAverageUtilization of cpu provided to a pod |
-| dataplane.autoscaling.targetMemoryUtilizationPercentage | int | `80` | targetAverageUtilization of memory provided to a pod |
-| dataplane.aws.accessKeyId | string | `""` |  |
-| dataplane.aws.endpointOverride | string | `""` |  |
-| dataplane.aws.secretAccessKey | string | `""` |  |
-| dataplane.debug.enabled | bool | `false` | Enables java debugging mode. |
-| dataplane.debug.port | int | `1044` | Port where the debuggee can connect to. |
-| dataplane.debug.suspendOnStart | bool | `false` | Defines if the JVM should wait with starting the application until someone connected to the debugging port. |
-| dataplane.endpoints | object | `{"control":{"path":"/api/control","port":8084},"default":{"path":"/api","port":8080},"metrics":{"path":"/metrics","port":9090},"proxy":{"authKey":"password","path":"/proxy","port":8186},"public":{"path":"/api/public","port":8081}}` | endpoints of the dataplane |
-| dataplane.endpoints.control | object | `{"path":"/api/control","port":8084}` | control api, used for internal control calls. can be added to the internal ingress, but should probably not |
-| dataplane.endpoints.control.path | string | `"/api/control"` | path for incoming api calls |
-| dataplane.endpoints.control.port | int | `8084` | port for incoming api calls |
-| dataplane.endpoints.default | object | `{"path":"/api","port":8080}` | default api for health checks, should not be added to any ingress |
-| dataplane.endpoints.default.path | string | `"/api"` | path for incoming api calls |
-| dataplane.endpoints.default.port | int | `8080` | port for incoming api calls |
-| dataplane.endpoints.metrics | object | `{"path":"/metrics","port":9090}` | metrics api, used for application metrics, must not be internet facing |
-| dataplane.endpoints.metrics.path | string | `"/metrics"` | path for incoming api calls |
-| dataplane.endpoints.metrics.port | int | `9090` | port for incoming api calls |
-| dataplane.endpoints.proxy.authKey | string | `"password"` | authentication key, must be attached to each request as `X-Api-Key` header |
-| dataplane.endpoints.proxy.path | string | `"/proxy"` | path for incoming api calls |
-| dataplane.endpoints.proxy.port | int | `8186` | port for incoming api calls |
-| dataplane.endpoints.public | object | `{"path":"/api/public","port":8081}` | public endpoint where the data can be fetched from if HttpPull was used. Must be internet facing. |
-| dataplane.endpoints.public.path | string | `"/api/public"` | path for incoming api calls |
-| dataplane.endpoints.public.port | int | `8081` | port for incoming api calls |
-| dataplane.env | object | `{}` | Extra environment variables that will be pass onto deployment pods |
-| dataplane.envConfigMapNames | list | `[]` | [Kubernetes ConfigMap Resource](https://kubernetes.io/docs/concepts/configuration/configmap/) names to load environment variables from |
-| dataplane.envSecretNames | list | `[]` | [Kubernetes Secret Resource](https://kubernetes.io/docs/concepts/configuration/secret/) names to load environment variables from |
-| dataplane.envValueFrom | object | `{}` | "valueFrom" environment variable references that will be added to deployment pods. Name is templated. ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvarsource-v1-core |
-| dataplane.image.pullPolicy | string | `"IfNotPresent"` | [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use |
-| dataplane.image.repository | string | `""` | Which derivate of the data plane to use. when left empty the deployment will select the correct image automatically |
-| dataplane.image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion |
-| dataplane.ingresses[0].annotations | object | `{}` | Additional ingress annotations to add |
-| dataplane.ingresses[0].certManager.clusterIssuer | string | `""` | If preset enables certificate generation via cert-manager cluster-wide issuer |
-| dataplane.ingresses[0].certManager.issuer | string | `""` | If preset enables certificate generation via cert-manager namespace scoped issuer |
-| dataplane.ingresses[0].className | string | `""` | Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use |
-| dataplane.ingresses[0].enabled | bool | `false` |  |
-| dataplane.ingresses[0].endpoints | list | `["public"]` | EDC endpoints exposed by this ingress resource |
-| dataplane.ingresses[0].hostname | string | `"edc-data.local"` | The hostname to be used to precisely map incoming traffic onto the underlying network service |
-| dataplane.ingresses[0].tls | object | `{"enabled":false,"secretName":""}` | TLS [tls class](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) applied to the ingress resource |
-| dataplane.ingresses[0].tls.enabled | bool | `false` | Enables TLS on the ingress resource |
-| dataplane.ingresses[0].tls.secretName | string | `""` | If present overwrites the default secret name |
-| dataplane.initContainers | list | `[]` |  |
-| dataplane.livenessProbe.enabled | bool | `true` | Whether to enable kubernetes [liveness-probe](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-| dataplane.livenessProbe.failureThreshold | int | `6` | when a probe fails kubernetes will try 6 times before giving up |
-| dataplane.livenessProbe.initialDelaySeconds | int | `30` | seconds to wait before performing the first liveness check |
-| dataplane.livenessProbe.periodSeconds | int | `10` | this fields specifies that kubernetes should perform a liveness check every 10 seconds |
-| dataplane.livenessProbe.successThreshold | int | `1` | number of consecutive successes for the probe to be considered successful after having failed |
-| dataplane.livenessProbe.timeoutSeconds | int | `5` | number of seconds after which the probe times out |
-| dataplane.logs.level | string | `"DEBUG"` | Defines the log granularity of the default Console Monitor. |
-| dataplane.nodeSelector | object | `{}` | [node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) to constrain pods to nodes |
-| dataplane.opentelemetry | string | `"otel.javaagent.enabled=false\notel.javaagent.debug=false"` | configuration of the [Open Telemetry Agent](https://opentelemetry.io/docs/instrumentation/java/automatic/agent-config/) to collect and expose metrics |
-| dataplane.podAnnotations | object | `{}` | additional annotations for the pod |
-| dataplane.podLabels | object | `{}` | additional labels for the pod |
-| dataplane.podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsUser":10001,"seccompProfile":{"type":"RuntimeDefault"}}` | The [pod security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod) defines privilege and access control settings for a Pod within the deployment |
-| dataplane.podSecurityContext.fsGroup | int | `10001` | The owner for volumes and any files created within volumes will belong to this guid |
-| dataplane.podSecurityContext.runAsGroup | int | `10001` | Processes within a pod will belong to this guid |
-| dataplane.podSecurityContext.runAsUser | int | `10001` | Runs all processes within a pod with a special uid |
-| dataplane.podSecurityContext.seccompProfile.type | string | `"RuntimeDefault"` | Restrict a Container's Syscalls with seccomp |
-| dataplane.readinessProbe.enabled | bool | `true` | Whether to enable kubernetes [readiness-probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) |
-| dataplane.readinessProbe.failureThreshold | int | `6` | when a probe fails kubernetes will try 6 times before giving up |
-| dataplane.readinessProbe.initialDelaySeconds | int | `30` | seconds to wait before performing the first readiness check |
-| dataplane.readinessProbe.periodSeconds | int | `10` | this fields specifies that kubernetes should perform a liveness check every 10 seconds |
-| dataplane.readinessProbe.successThreshold | int | `1` | number of consecutive successes for the probe to be considered successful after having failed |
-| dataplane.readinessProbe.timeoutSeconds | int | `5` | number of seconds after which the probe times out |
-| dataplane.replicaCount | int | `1` |  |
-| dataplane.resources | object | `{"limits":{"cpu":1.5,"memory":"1024Mi"},"requests":{"cpu":"500m","memory":"1024Mi"}}` | [resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for the container |
-| dataplane.resources.limits.cpu | float | `1.5` | Maximum CPU limit |
-| dataplane.resources.limits.memory | string | `"1024Mi"` | Maximum memory limit |
-| dataplane.resources.requests.cpu | string | `"500m"` | Initial CPU request |
-| dataplane.resources.requests.memory | string | `"1024Mi"` | Initial memory request |
-| dataplane.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":10001}` | The [container security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container) defines privilege and access control settings for a Container within a pod |
-| dataplane.securityContext.allowPrivilegeEscalation | bool | `false` | Controls [Privilege Escalation](https://kubernetes.io/docs/concepts/security/pod-security-policy/#privilege-escalation) enabling setuid binaries changing the effective user ID |
-| dataplane.securityContext.capabilities.add | list | `[]` | Specifies which capabilities to add to issue specialized syscalls |
-| dataplane.securityContext.capabilities.drop | list | `["ALL"]` | Specifies which capabilities to drop to reduce syscall attack surface |
-| dataplane.securityContext.readOnlyRootFilesystem | bool | `true` | Whether the root filesystem is mounted in read-only mode |
-| dataplane.securityContext.runAsNonRoot | bool | `true` | Requires the container to run without root privileges |
-| dataplane.securityContext.runAsUser | int | `10001` | The container's process will run with the specified uid |
-| dataplane.service.annotations | object | `{}` | additional annotations for the service |
-| dataplane.service.labels | object | `{}` | additional labels for the service |
-| dataplane.service.type | string | `"ClusterIP"` | [Service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) to expose the running application on a set of Pods as a network service. |
-| dataplane.token.refresh.expiry_seconds | int | `300` | TTL in seconds for access tokens (also known as EDR token) |
-| dataplane.token.refresh.expiry_tolerance_seconds | int | `10` | Tolerance for token expiry in seconds |
-| dataplane.token.refresh.refresh_endpoint | string | `nil` | Optional endpoint for an OAuth2 token refresh. Default endpoint is `<PUBLIC_API>/token` |
-| dataplane.token.signer.privatekey_alias | string | `nil` | Alias under which the private key (JWK or PEM format) is stored in the vault |
-| dataplane.token.verifier.publickey_alias | string | `nil` | Alias under which the public key (JWK or PEM format) is stored in the vault, that belongs to the private key which was referred to at `dataplane.token.signer.privatekey_alias` |
-| dataplane.tolerations | list | `[]` | [tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) to configure preferred nodes |
-| dataplane.url.public | string | `""` | Explicitly declared url for reaching the public api (e.g. if ingresses not used) |
-| dataplane.volumeMounts | string | `nil` | declare where to mount [volumes](https://kubernetes.io/docs/concepts/storage/volumes/) into the container |
-| dataplane.volumes | string | `nil` | [volume](https://kubernetes.io/docs/concepts/storage/volumes/) directories |
-| fullnameOverride | string | `""` |  |
-| iatp.cache.enabled | bool | `true` | Whether the Verifiable Presentation cache is enabled |
-| iatp.cache.validity | int | `86400` | Validity of the Verifiable Presentation cache in seconds |
-| iatp.didService.selfRegistration.enabled | bool | `false` | Whether Service Self Registration is enabled |
-| iatp.didService.selfRegistration.id | string | `"did:web:changeme"` | Unique id of connector to be used for register / unregister service inside did document (must be valid URI) |
-| iatp.id | string | `"did:web:changeme"` | Decentralized IDentifier (DID) of the connector |
-| iatp.sts.div.url | string | `nil` | URL where connectors can request SI tokens |
-| iatp.sts.oauth.client.id | string | `nil` | Client ID for requesting OAuth2 access token for DIV access |
-| iatp.sts.oauth.client.secret_alias | string | `nil` | Alias under which the client secret is stored in the vault for requesting OAuth2 access token for DIV access |
-| iatp.sts.oauth.token_url | string | `nil` | URL where connectors can request OAuth2 access tokens for DIV access |
-| iatp.trustedIssuers | list | `[]` | Configures the trusted issuers for this runtime. If no supportedTypes are specified, the value defaults to "*" for that issuer |
-| imagePullSecrets | list | `[]` | Existing image pull secret to use to [obtain the container image from private registries](https://kubernetes.io/docs/concepts/containers/images/#using-a-private-registry) |
-| install.postgresql | bool | `true` | Deploying a PostgreSQL instance |
-| install.vault | bool | `true` | Deploying a HashiCorp Vault instance |
-| log4j2.config | string | `"Appenders:\n  Console:\n    name: CONSOLE\n    JsonTemplateLayout:\n      eventTemplate: |-\n        {\n          \"timestamp\": {\n            \"$resolver\": \"timestamp\",\n            \"pattern\": {\n              \"format\": \"yyyy-MM-dd'T'HH:mm:ss.SSSSSSS\",\n              \"timeZone\": \"UTC\"\n            }\n          },\n          \"level\": {\n            \"$resolver\": \"level\",\n            \"field\": \"severity\",\n            \"severity\": {\n              \"field\": \"keyword\"\n            }\n          },\n          \"message\": {\n            \"$resolver\": \"message\"\n          }\n        }\nLoggers:\n  Root:\n    level: \"OFF\"\n  Logger:\n    name: org.eclipse.edc.monitor.logger\n    level: DEBUG\n    AppenderRef:\n      ref: CONSOLE"` | Log4j2 configuration for json log formatting. |
-| log4j2.enableJsonLogs | bool | `true` | Whether to enable the json log config in log4j2.config |
-| nameOverride | string | `""` |  |
-| networkPolicy.controlplane | object | `{"from":[{"namespaceSelector":{}}]}` | Configuration of the controlplane component |
-| networkPolicy.controlplane.from | list | `[{"namespaceSelector":{}}]` | Specify from rule network policy for cp (defaults to all namespaces) |
-| networkPolicy.dataplane | object | `{"from":[{"namespaceSelector":{}}]}` | Configuration of the dataplane component |
-| networkPolicy.dataplane.from | list | `[{"namespaceSelector":{}}]` | Specify from rule network policy for dp (defaults to all namespaces) |
-| networkPolicy.enabled | bool | `false` | If `true` network policy will be created to restrict access to control- and dataplane |
-| participant.contextId | string | `"UUID CHANGEME"` | Participant Context Id - Newly introduced id for a connector instance (needed for multitenancy) |
-| participant.id | string | `"BPNLCHANGEME"` | BPN Number |
-| postgresql.auth.database | string | `"edc"` |  |
-| postgresql.auth.password | string | `"password"` |  |
-| postgresql.auth.username | string | `"user"` |  |
-| postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
-| postgresql.image.tag | string | `"16.2.0-debian-12-r10"` |  |
-| postgresql.jdbcUrl | string | `"jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/edc"` |  |
-| postgresql.primary.persistence.enabled | bool | `false` |  |
-| postgresql.readReplicas.persistence.enabled | bool | `false` |  |
-| serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
-| serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
-| serviceAccount.imagePullSecrets | list | `[]` | Existing image pull secret bound to the service account to use to [obtain the container image from private registries](https://kubernetes.io/docs/concepts/containers/images/#using-a-private-registry) |
-| serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template |
-| tests | object | `{"hookDeletePolicy":"before-hook-creation,hook-succeeded"}` | Configurations for Helm tests |
-| tests.hookDeletePolicy | string | `"before-hook-creation,hook-succeeded"` | Configure the hook-delete-policy for Helm tests |
-| vault.hashicorp.healthCheck.enabled | bool | `true` |  |
-| vault.hashicorp.healthCheck.standbyOk | bool | `true` |  |
-| vault.hashicorp.paths.folder | string | `""` |  |
-| vault.hashicorp.paths.health | string | `"/v1/sys/health"` |  |
-| vault.hashicorp.paths.secret | string | `"/v1/secret"` |  |
-| vault.hashicorp.timeout | int | `30` |  |
-| vault.hashicorp.token | string | `"root"` |  |
-| vault.hashicorp.url | string | `"http://{{ .Release.Name }}-vault:8200"` |  |
-| vault.injector.enabled | bool | `false` |  |
-| vault.server.dev.devRootToken | string | `"root"` |  |
-| vault.server.dev.enabled | bool | `true` |  |
-| vault.server.postStart | string | `nil` |  |
+| `install.postgresql` | bool | `true` | Deploy the bundled PostgreSQL instance. |
+| `install.vault` | bool | `true` | Deploy the bundled HashiCorp Vault instance. |
+| `fullnameOverride` | string | `""` | Overrides the chart fullname used for all resource names. |
+| `nameOverride` | string | `""` | Overrides the chart name used in labels. |
+| `imagePullSecrets` | list | `[]` | Existing image pull secrets to obtain container images from private registries. |
+| `customLabels` | object | `{}` | Add some custom labels. |
+| `customCaCerts` | object | `{}` | Custom CA certificates added to the truststore. |
 
-----------------------------------------------
-Autogenerated from chart metadata using [helm-docs](https://github.com/norwoodj/helm-docs/)
+### `participant`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `participant.id` | string | `did:web:changeme` | Participant ID of the connector. |
+
+### `iatp`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `iatp.id` | string | `did:web:changeme` | Decentralized IDentifier (DID) of the connector. |
+| `iatp.trustedIssuerId` | string | `change-me` | ID of the trusted issuer used for SI token validation (maps to `EDC_IAM_TRUSTED-ISSUER_EXAMPLE_ID`). |
+| `iatp.trustedIssuers` | list | `[]` | Trusted issuers for this runtime. If no `supportedTypes` are specified, the value defaults to `*` for that issuer. |
+| `iatp.sts.div.url` | string | `nil` | URL where connectors can request SI tokens. |
+| `iatp.sts.oauth.token_url` | string | `https://change-me` | URL where connectors can request OAuth2 access tokens for DIV access. |
+| `iatp.sts.oauth.client.id` | string | `change-me` | Client ID for requesting the OAuth2 access token for DIV access. |
+| `iatp.sts.oauth.client.secret_alias` | string | `change-me` | Vault alias under which the client secret for DIV access is stored. |
+| `iatp.didService.selfRegistration.enabled` | bool | `false` | Whether Service Self Registration is enabled. |
+| `iatp.didService.selfRegistration.id` | string | `did:web:changeme` | Unique connector id used for register / unregister service inside the DID document (must be a valid URI). |
+| `iatp.cache.enabled` | bool | `true` | Whether the Verifiable Presentation cache is enabled. |
+| `iatp.cache.validity` | int | `86400` | Validity of the Verifiable Presentation cache in seconds. |
+
+### `log4j2`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `log4j2.enableJsonLogs` | bool | `true` | Whether to enable the JSON log config in `log4j2.config`. |
+| `log4j2.config` | string | _(YAML)_ | Log4j2 configuration for JSON log formatting. |
+
+### `controlplane`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `controlplane.nameOverride` | string | `""` | Overrides the control plane name used in labels. |
+| `controlplane.fullnameOverride` | string | `""` | Overrides the control plane fullname used for resource names. |
+| `controlplane.hostname` | string | `""` | Hostname where the control plane is reachable. |
+| `controlplane.image.repository` | string | `ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault` | Control plane image. When left empty the deployment selects the correct image automatically. |
+| `controlplane.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
+| `controlplane.image.tag` | string | `latest` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `controlplane.imagePullSecrets` | list | `[{name: ghcr-creds}]` | ghcr credentials to pull the control plane image. |
+| `controlplane.initContainers` | list | `[]` | Additional init containers run before the control plane starts. |
+| `controlplane.debug.enabled` | bool | `false` | Enables Java debugging mode. |
+| `controlplane.debug.port` | int | `1044` | Port where the debuggee can connect to. |
+| `controlplane.debug.suspendOnStart` | bool | `false` | If `true`, the JVM waits until a debugger connects. |
+| `controlplane.logs.level` | string | `DEBUG` | Log granularity of the default Console Monitor. |
+| `controlplane.bdrs.cache_validity_seconds` | int | `600` | Time a cached BPN/DID resolution map is valid, in seconds. |
+| `controlplane.bdrs.server.url` | string | `nil` | URL of the BPN/DID Resolution Service. |
+| `controlplane.policy.validation.enabled` | bool | `true` | Enable policy engine validation. |
+| `controlplane.podLabels` | object | `{}` | Additional labels for the pod. |
+| `controlplane.podAnnotations` | object | `{}` | Additional annotations for the pod. |
+| `controlplane.podSecurityContext.seccompProfile.type` | string | `RuntimeDefault` | Restricts the container's syscalls with seccomp. |
+| `controlplane.podSecurityContext.runAsUser` | int | `10001` | UID all processes within the pod run as. |
+| `controlplane.podSecurityContext.runAsGroup` | int | `10001` | GID all processes within the pod belong to. |
+| `controlplane.podSecurityContext.fsGroup` | int | `10001` | GID owning mounted volumes and files created within them. |
+| `controlplane.securityContext.capabilities.drop` | list | `[ALL]` | Linux capabilities dropped to reduce the syscall attack surface. |
+| `controlplane.securityContext.capabilities.add` | list | `[]` | Linux capabilities added for specialised syscalls. |
+| `controlplane.securityContext.readOnlyRootFilesystem` | bool | `true` | Mounts the root filesystem read-only. |
+| `controlplane.securityContext.allowPrivilegeEscalation` | bool | `false` | Controls privilege escalation via setuid binaries. |
+| `controlplane.securityContext.runAsNonRoot` | bool | `true` | Requires the container to run without root privileges. |
+| `controlplane.securityContext.runAsUser` | int | `10001` | UID the container process runs with. |
+| `controlplane.env` | object | `nil` | Extra plain environment variables injected into the pod. |
+| `controlplane.envValueFrom` | object | `{}` | Extra environment variables sourced from ConfigMaps or Secrets via `valueFrom`. |
+| `controlplane.envSecretNames` | list | `[]` | Names of existing Secrets whose keys are mounted as environment variables. |
+| `controlplane.envConfigMapNames` | list | `[]` | Names of existing ConfigMaps whose keys are mounted as environment variables. |
+| `controlplane.schema.autocreate` | bool | `true` | Database schema auto-creation. |
+| `controlplane.volumeMounts` | list | `nil` | Additional volume mounts for the control plane container. |
+| `controlplane.volumes` | list | `nil` | Additional volumes for the control plane pod. |
+| `controlplane.resources.limits.cpu` | float | `1.5` | Maximum CPU limit. |
+| `controlplane.resources.limits.memory` | string | `1024Mi` | Maximum memory limit. |
+| `controlplane.resources.requests.cpu` | string | `500m` | Initial CPU request. |
+| `controlplane.resources.requests.memory` | string | `1024Mi` | Initial memory request. |
+| `controlplane.replicaCount` | int | `1` | Number of control plane pod replicas. |
+| `controlplane.autoscaling.enabled` | bool | `false` | Enables Horizontal Pod Autoscaling. |
+| `controlplane.autoscaling.minReplicas` | int | `1` | Minimum number of replicas under HPA. |
+| `controlplane.autoscaling.maxReplicas` | int | `100` | Maximum number of replicas under HPA. |
+| `controlplane.autoscaling.targetCPUUtilizationPercentage` | int | `80` | CPU utilisation target for HPA scale-out. |
+| `controlplane.autoscaling.targetMemoryUtilizationPercentage` | int | `80` | Memory utilisation target for HPA scale-out. |
+| `controlplane.opentelemetry` | string | _(properties)_ | OpenTelemetry Agent configuration to collect and expose metrics. |
+| `controlplane.nodeSelector` | object | `{}` | Node selector constraints for the pod. |
+| `controlplane.tolerations` | list | `[]` | Tolerations for the pod. |
+| `controlplane.affinity` | object | `{}` | Affinity rules for the pod. |
+| `controlplane.url.protocol` | string | `""` | Explicitly declared URL for reaching the DSP API (e.g. if ingresses are not used). |
+
+### `controlplane.endpoints`
+
+Each endpoint creates a Kubernetes Service port and injects the corresponding `WEB_HTTP_*` environment variables into the control plane. Only endpoints listed under an ingress' `endpoints` array are exposed externally.
+
+| Key | Default port | Default path | Description |
+|-----|--------------|--------------|-------------|
+| `controlplane.endpoints.default` | `9000` | `/api` | Default API for health checks. Must not be added to any ingress. |
+| `controlplane.endpoints.management` | `9010` | `/management` | Data management API. Protected by `X-Api-Key`. Must not be internet-facing. |
+| `controlplane.endpoints.management.authKey` | — | `password` | Authentication key attached to each request as the `X-Api-Key` header. |
+| `controlplane.endpoints.management.jwksUrl` | — | `nil` | If set, the DelegatedAuth service is engaged. |
+| `controlplane.endpoints.control` | `9050` | `/control` | Control API for internal control calls. |
+| `controlplane.endpoints.protocol` | `9020` | `/dsp` | DSP API for inter-connector communication. Must be internet-facing. |
+| `controlplane.endpoints.validation` | `9030` | `/validation` | Validation API. |
+| `controlplane.endpoints.metrics` | `9090` | `/metrics` | Metrics API for application metrics. Must not be internet-facing. |
+
+### `controlplane.livenessProbe` / `controlplane.readinessProbe`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `*.enabled` | bool | `true` | Whether the probe is active. |
+| `*.initialDelaySeconds` | int | `30` | Seconds before the first probe fires. |
+| `*.periodSeconds` | int | `10` | Interval between probes. |
+| `*.timeoutSeconds` | int | `5` | Seconds before a probe attempt times out. |
+| `*.failureThreshold` | int | `6` | Consecutive failures before the pod is restarted or marked not-ready. |
+| `*.successThreshold` | int | `1` | Consecutive successes to transition back to healthy. |
+
+### `controlplane.service`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `controlplane.service.type` | string | `ClusterIP` | Kubernetes Service type. |
+| `controlplane.service.labels` | object | `{}` | Additional labels for the service. |
+| `controlplane.service.annotations` | object | `{}` | Additional annotations for the service. |
+
+### `controlplane.ingresses`
+
+A list of Ingress definitions. Each entry creates one Ingress resource routing the listed endpoints. The chart ships two pre-configured entries (public and internal). Only entries with `enabled: true` are rendered.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `*.enabled` | bool | Render this Ingress resource. |
+| `*.hostname` | string | Hostname for all routes in this Ingress. |
+| `*.annotations` | object | Annotations added to the Ingress. |
+| `*.endpoints` | list | Names of `controlplane.endpoints` keys to expose via this Ingress. |
+| `*.className` | string | Ingress class name (e.g. `nginx`, `traefik`). |
+| `*.tls.enabled` | bool | Attach a TLS block to this Ingress. |
+| `*.tls.secretName` | string | Name of the Secret holding the TLS certificate. |
+| `*.certManager.issuer` | string | cert-manager namespace-scoped issuer. |
+| `*.certManager.clusterIssuer` | string | cert-manager cluster-scoped issuer. |
+
+### `dataplane`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `dataplane.nameOverride` | string | `""` | Overrides the data plane name used in labels. |
+| `dataplane.fullnameOverride` | string | `""` | Overrides the data plane fullname used for resource names. |
+| `dataplane.hostname` | string | `""` | Hostname where the data plane is reachable. |
+| `dataplane.image.repository` | string | `ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault` | Data plane image. When left empty the deployment selects the correct image automatically. |
+| `dataplane.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
+| `dataplane.image.tag` | string | `latest` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `dataplane.imagePullSecrets` | list | `[{name: ghcr-creds}]` | ghcr credentials to pull the data plane image. |
+| `dataplane.initContainers` | list | `[]` | Additional init containers run before the data plane starts. |
+| `dataplane.debug.enabled` | bool | `false` | Enables Java debugging mode. |
+| `dataplane.debug.port` | int | `1044` | Port where the debuggee can connect to. |
+| `dataplane.debug.suspendOnStart` | bool | `false` | If `true`, the JVM waits until a debugger connects. |
+| `dataplane.logs.level` | string | `DEBUG` | Log granularity of the default Console Monitor. |
+| `dataplane.token.refresh.expiry_seconds` | int | `300` | TTL in seconds for access tokens (also known as EDR token). |
+| `dataplane.token.refresh.expiry_tolerance_seconds` | int | `10` | Tolerance for token expiry in seconds. |
+| `dataplane.token.refresh.refresh_endpoint` | string | `nil` | Optional endpoint for an OAuth2 token refresh. Default is `<PUBLIC_API>/token`. |
+| `dataplane.schema.autocreate` | bool | `true` | Database schema auto-creation. |
+| `dataplane.aws.endpointOverride` | string | `""` | AWS endpoint override. |
+| `dataplane.aws.accessKeyId` | string | `""` | AWS access key ID. |
+| `dataplane.aws.secretAccessKey` | string | `""` | AWS secret access key. |
+| `dataplane.podLabels` | object | `{}` | Additional labels for the pod. |
+| `dataplane.podAnnotations` | object | `{}` | Additional annotations for the pod. |
+| `dataplane.podSecurityContext.seccompProfile.type` | string | `RuntimeDefault` | Restricts the container's syscalls with seccomp. |
+| `dataplane.podSecurityContext.runAsUser` | int | `10001` | UID all processes within the pod run as. |
+| `dataplane.podSecurityContext.runAsGroup` | int | `10001` | GID all processes within the pod belong to. |
+| `dataplane.podSecurityContext.fsGroup` | int | `10001` | GID owning mounted volumes and files created within them. |
+| `dataplane.securityContext.capabilities.drop` | list | `[ALL]` | Linux capabilities dropped to reduce the syscall attack surface. |
+| `dataplane.securityContext.capabilities.add` | list | `[]` | Linux capabilities added for specialised syscalls. |
+| `dataplane.securityContext.readOnlyRootFilesystem` | bool | `true` | Mounts the root filesystem read-only. |
+| `dataplane.securityContext.allowPrivilegeEscalation` | bool | `false` | Controls privilege escalation via setuid binaries. |
+| `dataplane.securityContext.runAsNonRoot` | bool | `true` | Requires the container to run without root privileges. |
+| `dataplane.securityContext.runAsUser` | int | `10001` | UID the container process runs with. |
+| `dataplane.env` | object | `nil` | Extra plain environment variables injected into the pod. |
+| `dataplane.envValueFrom` | object | `{}` | Extra environment variables sourced from ConfigMaps or Secrets via `valueFrom`. |
+| `dataplane.envSecretNames` | list | `[]` | Names of existing Secrets whose keys are mounted as environment variables. |
+| `dataplane.envConfigMapNames` | list | `[]` | Names of existing ConfigMaps whose keys are mounted as environment variables. |
+| `dataplane.volumeMounts` | list | `nil` | Additional volume mounts for the data plane container. |
+| `dataplane.volumes` | list | `nil` | Additional volumes for the data plane pod. |
+| `dataplane.resources.limits.cpu` | float | `1.5` | Maximum CPU limit. |
+| `dataplane.resources.limits.memory` | string | `1024Mi` | Maximum memory limit. |
+| `dataplane.resources.requests.cpu` | string | `500m` | Initial CPU request. |
+| `dataplane.resources.requests.memory` | string | `1024Mi` | Initial memory request. |
+| `dataplane.replicaCount` | int | `1` | Number of data plane pod replicas. |
+| `dataplane.autoscaling.enabled` | bool | `false` | Enables Horizontal Pod Autoscaling. |
+| `dataplane.autoscaling.minReplicas` | int | `1` | Minimum number of replicas under HPA. |
+| `dataplane.autoscaling.maxReplicas` | int | `100` | Maximum number of replicas under HPA. |
+| `dataplane.autoscaling.targetCPUUtilizationPercentage` | int | `80` | CPU utilisation target for HPA scale-out. |
+| `dataplane.autoscaling.targetMemoryUtilizationPercentage` | int | `80` | Memory utilisation target for HPA scale-out. |
+| `dataplane.opentelemetry` | string | _(properties)_ | OpenTelemetry Agent configuration to collect and expose metrics. |
+| `dataplane.nodeSelector` | object | `{}` | Node selector constraints for the pod. |
+| `dataplane.tolerations` | list | `[]` | Tolerations for the pod. |
+| `dataplane.affinity` | object | `{}` | Affinity rules for the pod. |
+| `dataplane.url.public` | string | `""` | Explicitly declared URL for reaching the public API (e.g. if ingresses are not used). |
+
+### `dataplane.endpoints`
+
+Each endpoint creates a Kubernetes Service port and injects the corresponding `WEB_HTTP_*` environment variables into the data plane. Only endpoints listed under an ingress' `endpoints` array are exposed externally.
+
+| Key | Default port | Default path | Description |
+|-----|--------------|--------------|-------------|
+| `dataplane.endpoints.default` | `8181` | `/api` | Default API for health checks. Must not be added to any ingress. |
+| `dataplane.endpoints.public` | `9500` | `/public` | Public endpoint where data can be fetched if HttpPull was used. Must be internet-facing. |
+| `dataplane.endpoints.control` | `9550` | `/control` | Control API for internal control calls. |
+| `dataplane.endpoints.management` | `9510` | `/management` | Data management API. |
+| `dataplane.endpoints.proxy` | `9511` | `/proxy` | Proxy API for consumer data transfer. |
+| `dataplane.endpoints.proxy.authKey` | — | `password` | Authentication key attached to each request as the `X-Api-Key` header. |
+| `dataplane.endpoints.metrics` | `9090` | `/metrics` | Metrics API for application metrics. Must not be internet-facing. |
+
+### `dataplane.livenessProbe` / `dataplane.readinessProbe`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `*.enabled` | bool | `true` | Whether the probe is active. |
+| `*.initialDelaySeconds` | int | `30` | Seconds before the first probe fires. |
+| `*.periodSeconds` | int | `10` | Interval between probes. |
+| `*.timeoutSeconds` | int | `5` | Seconds before a probe attempt times out. |
+| `*.failureThreshold` | int | `6` | Consecutive failures before the pod is restarted or marked not-ready. |
+| `*.successThreshold` | int | `1` | Consecutive successes to transition back to healthy. |
+
+### `dataplane.service`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `dataplane.service.type` | string | `ClusterIP` | Kubernetes Service type. |
+| `dataplane.service.labels` | object | `{}` | Additional labels for the service. |
+| `dataplane.service.annotations` | object | `{}` | Additional annotations for the service. |
+
+### `dataplane.ingresses`
+
+A list of Ingress definitions. Each entry creates one Ingress resource routing the listed endpoints. The chart ships two pre-configured entries (public and internal). Only entries with `enabled: true` are rendered.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `*.enabled` | bool | Render this Ingress resource. |
+| `*.hostname` | string | Hostname for all routes in this Ingress. |
+| `*.annotations` | object | Annotations added to the Ingress. |
+| `*.endpoints` | list | Names of `dataplane.endpoints` keys to expose via this Ingress. |
+| `*.className` | string | Ingress class name (e.g. `nginx`, `traefik`). |
+| `*.tls.enabled` | bool | Attach a TLS block to this Ingress. |
+| `*.tls.secretName` | string | Name of the Secret holding the TLS certificate. |
+| `*.certManager.issuer` | string | cert-manager namespace-scoped issuer. |
+| `*.certManager.clusterIssuer` | string | cert-manager cluster-scoped issuer. |
+
+### `postgresql`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `postgresql.jdbcUrl` | string | `jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/edc` | JDBC URL passed to the EDC runtime. |
+| `postgresql.auth.database` | string | `edc` | Database name created on first start. Must match the path in `postgresql.jdbcUrl`. |
+| `postgresql.auth.username` | string | `user` | Database user the connector connects as. |
+| `postgresql.auth.password` | string | `password` | Database password. **Change before production use.** |
+| `postgresql.persistence.enabled` | bool | `true` | Persist data across pod restarts. |
+| `postgresql.persistence.size` | string | `10Gi` | Size of the allocated Persistent Volume. |
+| `postgresql.persistence.storageClass` | string | `""` | Storage Class of the used Storage Provisioner. |
+| `postgresql.initdb.scriptsConfigMap` | string | `""` | Optional ConfigMap containing database initialisation scripts. |
+| `postgresql.resources.limits.cpu` | string | `500m` | CPU limit for the PostgreSQL container. |
+| `postgresql.resources.limits.memory` | string | `1Gi` | Memory limit for the PostgreSQL container. |
+| `postgresql.resources.requests.cpu` | string | `250m` | CPU request for the PostgreSQL container. |
+| `postgresql.resources.requests.memory` | string | `256Mi` | Memory request for the PostgreSQL container. |
+
+### `vault`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `vault.injector.enabled` | bool | `false` | Vault Agent Injector sidecar. Disabled — the connector reads secrets directly via the Vault HTTP API. |
+| `vault.server.dev.enabled` | bool | `true` | Run Vault in dev mode (in-memory, lost on pod restart). **Disable for production** and configure a persistent storage backend instead. |
+| `vault.server.dev.devRootToken` | string | `root` | Root token for dev mode. Must match `vault.hashicorp.token`. |
+| `vault.server.dataStorage.enabled` | bool | `false` | Persistent Vault data volume for non-dev mode. Enable if `vaultInit.mode=hashicorp-persistent`. |
+| `vault.server.dataStorage.size` | string | `1Gi` | Size of the Vault data volume. |
+| `vault.server.dataStorage.storageClass` | string | `""` | Storage Class for the Vault data volume. |
+| `vault.server.dataStorage.mountPath` | string | `/vault/data` | Mount path for Vault data. Must match `storage "file" { path }` in the standalone config HCL. |
+| `vault.server.auditStorage.enabled` | bool | `false` | Persistent audit log volume. Recommended for non-dev mode. Not rotated automatically; blocks Vault when full. |
+| `vault.server.auditStorage.size` | string | `1Gi` | Size of the Vault audit volume. |
+| `vault.server.auditStorage.storageClass` | string | `""` | Storage Class for the Vault audit volume. |
+| `vault.server.auditStorage.mountPath` | string | `/vault/audit` | Mount path for the Vault audit log. |
+| `vault.server.standalone.enabled` | bool | `true` | Run Vault in standalone mode. |
+| `vault.server.standalone.config` | string | _(HCL)_ | Vault HCL config. `tls_disable = 1` is for cluster-internal use only; `storage "file" { path }` must match `vault.server.dataStorage.mountPath`. |
+| `vault.server.postStart` | string | `nil` | Optional post-start script executed inside the Vault container. Can initialise the KV engine or apply policies. Must be set externally. |
+| `vault.hashicorp.url` | string | `http://{{ .Release.Name }}-vault:8200` | Vault address reachable from within the cluster. |
+| `vault.hashicorp.token` | string | `root` | Vault token used by the connector at runtime. If `vault.server.dev.enabled` is `true`, must match `vault.server.dev.devRootToken`. **Change before production use.** |
+| `vault.hashicorp.timeout` | int | `30` | Vault HTTP client timeout in seconds. |
+| `vault.hashicorp.healthCheck.enabled` | bool | `true` | Whether the connector checks Vault health on startup. |
+| `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
+| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all connector secrets. |
+| `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the connector and vault-init job. |
+
+### `vaultInit`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `vaultInit.mode` | string | `hashicorp-dev` | Vault initialisation mode: `hashicorp-dev` \| `hashicorp-persistent`. |
+| `vaultInit.enabled` | bool | `true` | Whether the vault-init job is rendered. |
+| `vaultInit.aes.enabled` | bool | `false` | Request an AES key (wallets). Disabled for the connector. |
+| `vaultInit.rsa.enabled` | bool | `true` | Request an RSA keypair (connector). Disabled for the wallets. |
+| `vaultInit.rsa.privateAlias` | string | `priv` | Alias of the private key stored in the vault. |
+| `vaultInit.rsa.publicAlias` | string | `pub` | Alias of the public key stored in the vault. |
+| `vaultInit.forceRegenerate` | bool | `false` | Regenerate secrets even if they already exist. |
+| `vaultInit.image.repository` | string | `alpine` | Image repository for the vault-init job. |
+| `vaultInit.image.tag` | string | `3.20` | Image tag for the vault-init job. |
+| `vaultInit.autoInit.enabled` | bool | `false` | Automatic init/unseal of a persistent Vault. Only for `mode=hashicorp-persistent`. Non-prod only (single unseal key, keys stored as a cluster Secret). |
+| `vaultInit.autoInit.keysSecretName` | string | `connector-vault-keys` | Name of the Kubernetes Secret storing the unseal key and root token. |
+| `vaultInit.autoInit.kvMount` | string | `secret` | KV-v2 secrets engine mount path (without leading `/v1/`). Must match `vault.hashicorp.paths.secret`. |
+| `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File path for the audit device. Must reside within `vault.server.auditStorage.mountPath`. Leave empty to skip enabling the audit device. |
+
+### `networkPolicy`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `networkPolicy.enabled` | bool | `false` | If `true`, a network policy is created to restrict access to the control and data plane. |
+| `networkPolicy.controlplane.from` | list | `[{namespaceSelector: {}}]` | `from` rule for the control plane network policy (defaults to all namespaces). |
+| `networkPolicy.dataplane.from` | list | `[{namespaceSelector: {}}]` | `from` rule for the data plane network policy (defaults to all namespaces). |
+
+### `serviceAccount`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `serviceAccount.create` | bool | `true` | Create a dedicated ServiceAccount for the connector and vault-init job. |
+| `serviceAccount.automount` | bool | `true` | Automatically mount the ServiceAccount token into pods. |
+| `serviceAccount.annotations` | object | `{}` | Annotations added to the ServiceAccount. |
+| `serviceAccount.name` | string | `""` | Override the generated ServiceAccount name. |
+| `serviceAccount.imagePullSecrets` | list | `[]` | Existing image pull secret bound to the service account for private registries. |
+
+### `tests`
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `tests.hookDeletePolicy` | string | `before-hook-creation,hook-succeeded` | Helm test hook delete policy. |
+
+## Sources
+
+- Code: [Construct-X Connector](https://github.com/project-construct-x/constructx-edc)
+- Chart: [Tractus-X Connector](https://github.com/eclipse-tractusx/tractusx-edc)
