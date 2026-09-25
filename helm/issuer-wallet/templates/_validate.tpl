@@ -18,6 +18,9 @@ Call in any rendered template:
   {{- if not $context.Values.vault.server.dev.enabled -}}
   {{- fail "vaultInit.mode=hashicorp-dev requires vault.server.dev.enabled=true" -}}
   {{- end -}}
+  {{- if ne $context.Values.vault.hashicorp.token $context.Values.vault.server.dev.devRootToken -}}
+  {{- fail "vaultInit.mode=hashicorp-dev requires vault.hashicorp.token to match vault.server.dev.devRootToken" -}}
+  {{- end -}}
 {{- else if eq $mode "hashicorp-persistent" -}}
   {{- if $context.Values.vault.server.dev.enabled -}}
   {{- fail "vaultInit.mode=hashicorp-persistent requires vault.server.dev.enabled=false" -}}
