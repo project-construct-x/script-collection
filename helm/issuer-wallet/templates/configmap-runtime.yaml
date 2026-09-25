@@ -21,7 +21,6 @@
 
 # this configmap contains all application configuration that is required by the issuer-wallet runtime.
 
-{{- $fullName := .Values.fullnameOverride -}}
 {{- $iam := index .Values "wallet" "iam" | default dict -}}
 {{- $issuer := index .Values "wallet" "issuer" | default dict -}}
 {{- $statuslist := index $issuer "statuslist" | default dict -}}
@@ -29,7 +28,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullName }}-config
+  name: {{ include "issuer-wallet.fullname" . }}-config
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "issuer-wallet.labels" . | nindent 4 }}

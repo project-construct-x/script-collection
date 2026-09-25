@@ -18,7 +18,7 @@
 #################################################################################
 
 {{- if eq (include "common.vaultInit.jobEnabled" .) "true" -}}
-{{- $fullName := .Values.fullnameOverride }}
+{{- $fullName := include "issuer-wallet.fullname" . }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -76,7 +76,7 @@ spec:
               value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
             - name: RSA_PUB_ALIAS
               value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
-            {{- if .Values.vaultInit.autoInit.enabled }}
+          {{- if .Values.vaultInit.autoInit.enabled }}
             # --- Auto-Init (hashicorp-persistent mode only) ---
             - name: AUTO_INIT
               value: "true"
