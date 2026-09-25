@@ -131,3 +131,10 @@ Defines if the psql-vault AES secret rendering does run
 {{- define "common.vaultInit.sqlAesEnabled" -}}
 {{- and .Values.vaultInit.enabled (eq .Values.vaultInit.mode "postgres") -}}
 {{- end -}}
+
+{{/* 
+Defines Vault Token Secret Name for autoInit
+*/}}
+{{- define "issuer-wallet.appTokenSecretName" -}}
+{{- printf "%s-vault-deployment-token" .Values.fullnameOverride -}}
+{{- end -}}

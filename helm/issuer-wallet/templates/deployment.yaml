@@ -20,8 +20,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 #
 
-{{- $fullName := .Values.fullnameOverride -}}
-
+{{- $fullName := include "issuer-wallet.fullname" . -}}
 {{- include "common.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent" "postgres")) }}
 
 apiVersion: apps/v1
@@ -155,11 +154,12 @@ spec:
             - name: {{ $key | quote }}
               value: {{ $value | quote }}
           {{- end }}
+            # Overrides Vault Token from Values File with generated Token from Vault Initialization
           {{- if .Values.vaultInit.autoInit.enabled }}
             - name: EDC_VAULT_HASHICORP_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+                  name: {{ include "issuer-wallet.appTokenSecretName" . }}
                   key: EDC_VAULT_HASHICORP_TOKEN
           {{- end }}
           envFrom:
@@ -219,7 +219,7 @@ spec:
       {{- if .Values.vaultInit.autoInit.enabled }}
         - name: vault-app-token
           secret:
-            secretName: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+            secretName: {{ include "issuer-wallet.appTokenSecretName" . }}
             optional: true
       {{- end }}
       {{- with .Values.wallet.nodeSelector }}
