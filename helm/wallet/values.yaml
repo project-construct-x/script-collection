@@ -413,38 +413,28 @@ vault:
 vaultInit:
   # Sets vault initialization mode: hashicorp-dev | hashicorp-persistent
   mode: hashicorp-dev
-
   # Whether the vault-init job is rendered.
   enabled: true
-
   # AES key request (wallets). Disabled for the connector.
   aes:
     enabled: true
-    # Alias of the AES-256 key. In postgres mode also the mounted file name.
+    # Alias of the AES-256 key.
     alias: "wallet-aes-key-alias"
-
   # RSA keypair request (connector). Disabled for the wallets.
   rsa:
     enabled: false
-    # Alias of the private key stored in the vault.
-    privateAlias: "priv"
-    # Alias of the public key stored in the vault.
-    publicAlias: "pub"
-
   # Regenerate secrets even if they already exist.
-  forceRegenerate: false
-
+  forceRegenerate: fals
   # Image for the vault-init job.
   image:
     repository: "alpine"
     tag: "3.20"
-
   # Automatic init/unseal of a persistent Vault. Only for mode=hashicorp-persistent.
   # Non-prod only (single unseal key, keys stored as a cluster Secret).
   autoInit:
     enabled: false
     # Name of the Kubernetes Secret the unseal key and root token are stored in.
-    keysSecretName: "vault-keys"
+    keysSecretName: "wallet-vault-keys"
     # KV-v2 secrets engine mount path (without leading /v1/). Must match vault.hashicorp.paths.secret.
     kvMount: "secret"
     # File path for the audit device. Must reside within vault.server.auditStorage.mountPath.

@@ -88,12 +88,12 @@
 {{- else if eq .Values.vaultInit.mode "hashicorp-persistent" }}
   Secrets are stored in a persistent HashiCorp Vault.
 {{- if .Values.vaultInit.autoInit.enabled }}
-{{- $keys := .Values.vaultInit.autoInit.keysSecretName }}
-{{- $deploymentToken := printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+{{- $vaultKeysSecretName := .Values.vaultInit.autoInit.keysSecretName }}
+{{- $vaultDeploymentTokenSecretName := printf "%s-vault-deployment-token" .Values.fullnameOverride }}
 
   Vault is initialised and unsealed automatically (autoInit).
-    Unseal key + root token (job only)  : secret/{{ $keys }}
-    Scoped deployment token (app only)  : secret/{{ $deploymentToken }}
+    Unseal key + root token (job only)  : secret/{{ $vaultKeysSecretName }}
+    Scoped deployment token (app only)  : secret/{{ $vaultDeploymentTokenSecretName }}
 
   Check the seal status after a Vault pod restart:
     kubectl -n {{ $namespace }} exec {{ .Release.Name }}-vault-0 -- \

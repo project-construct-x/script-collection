@@ -14,30 +14,71 @@ The wallet stores its cryptographic secrets in one of two backends, selected via
 
 Secret storage is controlled by the `vaultInit.mode` key.
 
-| Mode                   | Secret Storage                                   | Secret seeding             |
-| ---------------------- | ------------------------------------------------ | -------------------------- |
-| `hashicorp-dev`        | Hashicorp Vault, required (bundled or external)  | vault-init job             |
-| `hashicorp-persistent` | Hashicorp Vault, required (bundled or external)  | vault-init job             |
+| Mode                   | Secret storage       | Init / unseal                                 | Survives pod restart |
+| ---------------------- | -------------------- | --------------------------------------------- | -------------------- |
+| `hashicorp-dev`        | in-memory            | none — fixed dev root token                   | no                   |
+| `hashicorp-persistent` | PVC                  | manual, or automatic via `vaultInit.autoInit` | yes                  |
 
 **Rules** (enforced at template rendering time)
-- `hashicorp-dev` requires `vault.server.dev.enabled: true`.
+- `hashicorp-dev` requires `vault.server.dev.enabled=true`, and
+`vault.hashicorp.token` **must equal** `vault.server.dev.devRootToken` —
+the runtimes authenticate with the dev root token.
 - `hashicorp-persistent` requires `vault.server.dev.enabled: false`.
 - `vaultInit.autoInit.enabled: true` is valid only with `hashicorp-persistent` and
   requires `vault.server.dataStorage.enabled: true`.
+- `autoInit` requires a ServiceAccount with `automountServiceAccountToken=true`
+(either `serviceAccount.create=true` + `serviceAccount.automount=true`, or a
+pre-created `serviceAccount.name`).
+- `vaultInit.rsa.enabled=true` is rejected — the wallet seeds AES only.
+The `rsa` block exists solely to keep the schema uniform across charts.
 
-> `autoInit` uses a single unseal key and stores the unseal key and root token as a
-> Kubernetes secret in the namespace — non-production only. For production use KMS
-> auto-unseal and external key management.
+### Secret seeding
+
+The `vault-init` job runs in both modes as a `post-install,post-upgrade` hook
+and seeds the wallet token key into the Vault:
+
+
+| Alias value                  | Purpose                       |
+| ---------------------------- | ----------------------------- |
+| `vaultInit.aes.alias`        | wallet token key              |
+
+
+Existing secrets are not overwritten unless `vaultInit.forceRegenerate=true`.
+
+### autoInit (persistent mode)
+
+With `vaultInit.autoInit.enabled=true` the job additionally initialises the
+Vault (`secret_shares=1`, `secret_threshold=1`), unseals it, enables the KV-v2
+mount and a file audit device, and creates a **scoped app token** restricted to the configured KV mount.
+
+Two separate Kubernetes secrets are produced:
+
+
+| Secret                              | Contents                | Consumed by          |
+| ----------------------------------- | ----------------------- | -------------------- |
+| `vaultInit.autoInit.keysSecretName` | unseal key + root token | the init job only    |
+| `<fullname>-vault-deployment-token` | scoped app token        | wallet               |
+
+
+With `autoInit` enabled, `EDC_VAULT_HASHICORP_TOKEN` is injected into the wallet
+deployment via `secretKeyRef` instead of being taken from
+`vault.hashicorp.token`.
+
+> **autoInit is not production safe.** A single unseal key and the root token
+> are stored as a Kubernetes secret in the release namespace. The Vault is
+> sealed again after a pod restart and is *not* unsealed automatically. For
+> production use KMS auto-unseal and external key management, and keep
+> `autoInit.enabled=false`.
 
 ## Prerequisites
 
-| **Requirement** | **Version** |
-|---|---|
-| Kubernetes | 1.29+ |
-| Helm | 3.14+ |
+| Requirement | Version |
+|-------------|---------|
+| Kubernetes  | 1.29+   |
+| Helm        | 3.14+   |
 
-- A Persistent Volume provisioner is required if `postgresql.primary.persistence.enabled: true`
-- Cluster Internet connection is required if `vault.hashicorp.init.enabled: true` to pull required `apk` packages
+- A Persistent Volume provisioner is required if `postgresql.primary.persistence.enabled: true` and/or `vaultInit.mode=hashicorp-persistent`
+- Cluster Internet connection is required when the vault-init job runs (`vaultInit.enabled: true`), so it can pull the required `apk` packages.
 
 ## Installation
 
@@ -216,7 +257,7 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vaultInit.image.repository` | string | `alpine` | Image of the vault-init job. |
 | `vaultInit.image.tag` | string | `3.20` | Tag of the vault-init job image. |
 | `vaultInit.autoInit.enabled` | bool | `false` | Auto-initialise and unseal a persistent Vault. `hashicorp-persistent` only. Non-production. |
-| `vaultInit.autoInit.keysSecretName` | string | `vault-keys` | Secret holding the unseal key and root token. |
+| `vaultInit.autoInit.keysSecretName` | string | `wallet-vault-keys` | Secret holding the unseal key and root token. |
 | `vaultInit.autoInit.kvMount` | string | `secret` | KV-v2 engine mount path (`vault.hashicorp.paths.secret` without leading `/v1/`). |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File audit device path. Empty to skip enabling audit. |
 
