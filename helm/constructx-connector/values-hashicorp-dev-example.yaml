@@ -1,15 +1,20 @@
+#################################################################################
+# Example override values — constructx-connector
+# Mode: hashicorp-dev  (bundled HashiCorp Vault in dev mode, in-memory)
+#################################################################################
+
 shared:
-    connectorId: &connectorId did:web:consumer-wallet.staging.construct-x.net:consumer
-    secretAlias: &secretAlias consumersecret
+    connectorId: &connectorId did:web:user-wallet.staging.construct-x.net:user
+    secretAlias: &secretAlias usersecret
     trustedIssuerId: &trustedIssuerId did:web:issuer.staging.construct-x.net:issuer
     clusterIssuer: &clusterIssuer letsencrypt-staging
     ingressClass: &ingressClass nginx
     imagePullSecret: &imagePullSecret registry-creds
-    controlplaneFqdn: &controlplaneFqdn consumer-edc-controlplane.staging.construct-x.net
-    dataplaneFqdn: &dataplaneFqdn consumer-edc-dataplane.staging.construct-x.net
+    controlplaneFqdn: &controlplaneFqdn user-edc-controlplane.staging.construct-x.net
+    dataplaneFqdn: &dataplaneFqdn user-edc-dataplane.staging.construct-x.net
 
-nameOverride: consumer-edc
-fullnameOverride: consumer-edc
+nameOverride: user-edc
+fullnameOverride: user-edc
 
 participant:
     id: *connectorId
@@ -21,7 +26,7 @@ iatp:
         - id: *trustedIssuerId
     sts:
         oauth:
-            token_url: https://consumer-wallet.staging.construct-x.net/api/sts/token
+            token_url: https://user-wallet.staging.construct-x.net/api/sts/token
             client:
                 id: *connectorId
                 secret_alias: *secretAlias
@@ -29,8 +34,17 @@ iatp:
         selfRegistration:
             id: *connectorId
 
+vaultInit:
+  mode: hashicorp-dev
+  enabled: true
+  rsa:
+    privateAlias: "user_priv"
+    publicAlias: "user_pub"
+  autoInit:
+    enabled: false
+
 controlplane:
-    hostname: consumer-edc-controlplane
+    hostname: user-edc-controlplane
     imagePullSecrets:
         - name: *imagePullSecret
     ingresses:
@@ -46,7 +60,7 @@ controlplane:
           className: *ingressClass
           tls:
               enabled: true
-              secretName: consumer-edc-cp-tls
+              secretName: user-edc-cp-tls
           certManager:
               clusterIssuer: *clusterIssuer
         ## Private / Intranet facing Ingress
@@ -64,19 +78,14 @@ controlplane:
           className: *ingressClass
           tls:
               enabled: true
-              secretName: consumer-edc-cp-int-tls
+              secretName: user-edc-cp-int-tls
           certManager:
               clusterIssuer: *clusterIssuer
 
 dataplane:
-    hostname: consumer-edc-dataplane
+    hostname: user-edc-dataplane
     imagePullSecrets:
         - name: *imagePullSecret
-    token:
-        signer:
-            privatekey_alias: cons_priv
-        verifier:
-            publickey_alias: cons_pub
     ingresses:
         ## Public / Internet facing Ingress
         - enabled: true
@@ -91,7 +100,7 @@ dataplane:
           className: *ingressClass
           tls:
               enabled: true
-              secretName: consumer-edc-dp-tls
+              secretName: user-edc-dp-tls
           certManager:
               clusterIssuer: *clusterIssuer
         ## Private / Intranet facing Ingress
@@ -108,7 +117,7 @@ dataplane:
           className: *ingressClass
           tls:
               enabled: true
-              secretName: consumer-edc-dp-int-tls
+              secretName: user-edc-dp-int-tls
           certManager:
               clusterIssuer: *clusterIssuer
 
@@ -119,6 +128,12 @@ postgresql:
         storageClass: ""
 
 vault:
-    hashicorp:
-        init:
-            enabled: true
+  server:
+    dev:
+      enabled: true
+      # WARNING: dev-mode default token. Change before use.
+      devRootToken: "root"
+  hashicorp:
+    url: "http://{{ .Release.Name }}-vault:8200"
+    # WARNING: dev-mode default token. Change before use.
+    token: "root"
