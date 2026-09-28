@@ -198,5 +198,5 @@ Defines if the vault-init job for hashicorp vault does run
 Defines Vault Token Secret Name for autoInit
 */}}
 {{- define "conxdc.appTokenSecretName" -}}
-{{- printf "%s-vault-deployment-token" .Values.fullnameOverride -}}
+{{- printf "%s-vault-deployment-token" (include "conxdc.fullname" .) -}}
 {{- end -}}

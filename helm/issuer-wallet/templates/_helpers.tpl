@@ -136,5 +136,5 @@ Defines if the psql-vault AES secret rendering does run
 Defines Vault Token Secret Name for autoInit
 */}}
 {{- define "issuer-wallet.appTokenSecretName" -}}
-{{- printf "%s-vault-deployment-token" .Values.fullnameOverride -}}
+{{- printf "%s-vault-deployment-token" (include "issuer-wallet.fullname" .) -}}
 {{- end -}}

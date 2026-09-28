@@ -89,7 +89,7 @@
   Secrets are stored in a persistent HashiCorp Vault.
 {{- if .Values.vaultInit.autoInit.enabled }}
 {{- $vaultKeysSecretName := .Values.vaultInit.autoInit.keysSecretName }}
-{{- $vaultDeploymentTokenSecretName := printf "%s-vault-deployment-token" .Values.fullnameOverride }}
+{{- $vaultDeploymentTokenSecretName := include "issuer-wallet.appTokenSecretName" . }}
 
   Vault is initialised and unsealed automatically (autoInit).
     Unseal key + root token (job only)  : secret/{{ $vaultKeysSecretName }}

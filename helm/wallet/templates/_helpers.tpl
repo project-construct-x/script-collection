@@ -111,5 +111,5 @@ Defines if the vault-init job for hashicorp vault does run
 Defines Vault Token Secret Name for autoInit
 */}}
 {{- define "wallet.appTokenSecretName" -}}
-{{- printf "%s-vault-deployment-token" .Values.fullnameOverride -}}
+{{- printf "%s-vault-deployment-token" (include "wallet.fullname" .) -}}
 {{- end -}}

@@ -91,7 +91,7 @@ spec:
             - name: AUDIT_PATH
               value: {{ .Values.vaultInit.autoInit.auditPath | quote }}
             - name: APP_TOKEN_SECRET_NAME
-              value: {{ printf "%s-vault-deployment-token" .Values.fullnameOverride | quote }}
+              value: {{ include "issuer-wallet.appTokenSecretName" . | quote }}
             - name: APP_POLICY_NAME
               value: "deployment"
           {{- end }}
