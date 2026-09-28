@@ -1,0 +1,188 @@
+{{- $fullName := include "conxdc.fullname" . -}}
+{{- $namespace := .Release.Namespace -}}
+================================================================================
+Construct-X Connector "{{ .Release.Name }}" — installation complete
+================================================================================
+  Chart version       : {{ .Chart.Version }}
+  App version         : {{ .Chart.AppVersion }}
+  Namespace           : {{ $namespace }}
+  Release             : {{ .Release.Name }}
+  Secret storage mode : {{ .Values.vaultInit.mode }}
+
+================================================================================
+Control Plane
+================================================================================
+{{- $controlplaneHasIngress := false }}
+{{- range $ingress := .Values.controlplane.ingresses }}
+{{- if $ingress.enabled }}
+{{- $controlplaneHasIngress = true }}
+{{- $scheme := "http" }}{{- if $ingress.tls.enabled }}{{ $scheme = "https" }}{{ end }}
+  Ingress {{ $ingress.hostname }} (class: {{ $ingress.className | default "default" }}, tls: {{ $ingress.tls.enabled }})
+  exposes these endpoints:
+  {{- range $endpointName := $ingress.endpoints }}
+  {{- $endpoint := index $.Values.controlplane.endpoints $endpointName }}
+  {{- if $endpoint }}
+    {{ printf "%-11s" $endpointName }} {{ $scheme }}://{{ $ingress.hostname }}{{ $endpoint.path }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- if not $controlplaneHasIngress }}
+  No control plane ingress is enabled — endpoints are cluster-internal only.
+{{- end }}
+
+  Endpoints NOT exposed via any ingress (cluster-internal only):
+  {{- $controlplaneExposedEndpointNames := list }}
+  {{- range $ingress := .Values.controlplane.ingresses }}{{- if $ingress.enabled }}{{- range $exposedEndpointName := $ingress.endpoints }}{{ $controlplaneExposedEndpointNames = append $controlplaneExposedEndpointNames $exposedEndpointName }}{{- end }}{{- end }}{{- end }}
+  {{- range $endpointName, $endpoint := .Values.controlplane.endpoints }}
+  {{- if not (has $endpointName $controlplaneExposedEndpointNames) }}
+    {{ printf "%-11s" $endpointName }} :{{ $endpoint.port }}{{ $endpoint.path }}
+  {{- end }}
+  {{- end }}
+
+  Reach a cluster-internal endpoint via port-forward:
+{{- if contains "NodePort" .Values.controlplane.service.type }}
+    export NODE_PORT=$(kubectl get -n {{ $namespace }} -o jsonpath="{.spec.ports[0].nodePort}" svc {{ $fullName }}-controlplane)
+    export NODE_IP=$(kubectl get nodes -n {{ $namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "http://$NODE_IP:$NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.controlplane.service.type }}
+    kubectl get -n {{ $namespace }} svc -w {{ $fullName }}-controlplane
+{{- else }}
+    export POD_NAME=$(kubectl get pod -n {{ $namespace }} \
+      -l app.kubernetes.io/name={{ include "conxdc.name" . }}-controlplane -o name | head -1)
+    kubectl -n {{ $namespace }} port-forward $POD_NAME {{ .Values.controlplane.endpoints.management.port }}:{{ .Values.controlplane.endpoints.management.port }}
+{{- end }}
+
+================================================================================
+Data Plane
+================================================================================
+{{- $dataplaneHasIngress := false }}
+{{- range $ingress := .Values.dataplane.ingresses }}
+{{- if $ingress.enabled }}
+{{- $dataplaneHasIngress = true }}
+{{- $scheme := "http" }}{{- if $ingress.tls.enabled }}{{ $scheme = "https" }}{{ end }}
+  Ingress {{ $ingress.hostname }} (class: {{ $ingress.className | default "default" }}, tls: {{ $ingress.tls.enabled }})
+  exposes these endpoints:
+  {{- range $endpointName := $ingress.endpoints }}
+  {{- $endpoint := index $.Values.dataplane.endpoints $endpointName }}
+  {{- if $endpoint }}
+    {{ printf "%-11s" $endpointName }} {{ $scheme }}://{{ $ingress.hostname }}{{ $endpoint.path }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- if not $dataplaneHasIngress }}
+  No data plane ingress is enabled — endpoints are cluster-internal only.
+{{- end }}
+
+  Endpoints NOT exposed via any ingress (cluster-internal only):
+  {{- $dataplaneExposedEndpointNames := list }}
+  {{- range $ingress := .Values.dataplane.ingresses }}{{- if $ingress.enabled }}{{- range $exposedEndpointName := $ingress.endpoints }}{{ $dataplaneExposedEndpointNames = append $dataplaneExposedEndpointNames $exposedEndpointName }}{{- end }}{{- end }}{{- end }}
+  {{- range $endpointName, $endpoint := .Values.dataplane.endpoints }}
+  {{- if not (has $endpointName $dataplaneExposedEndpointNames) }}
+    {{ printf "%-11s" $endpointName }} :{{ $endpoint.port }}{{ $endpoint.path }}
+  {{- end }}
+  {{- end }}
+
+  Reach a cluster-internal endpoint via port-forward:
+{{- if contains "NodePort" .Values.dataplane.service.type }}
+    export NODE_PORT=$(kubectl get -n {{ $namespace }} -o jsonpath="{.spec.ports[0].nodePort}" svc {{ $fullName }}-dataplane)
+    export NODE_IP=$(kubectl get nodes -n {{ $namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "http://$NODE_IP:$NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.dataplane.service.type }}
+    kubectl get -n {{ $namespace }} svc -w {{ $fullName }}-dataplane
+{{- else }}
+    export POD_NAME=$(kubectl get pod -n {{ $namespace }} \
+      -l app.kubernetes.io/name={{ include "conxdc.name" . }}-dataplane -o name | head -1)
+    kubectl -n {{ $namespace }} port-forward $POD_NAME {{ .Values.dataplane.endpoints.public.port }}:{{ .Values.dataplane.endpoints.public.port }}
+{{- end }}
+
+================================================================================
+Identity (IATP / DIV)
+================================================================================
+  Participant / Issuer ID : {{ .Values.iatp.id }}
+  DIV token URL           : {{ .Values.iatp.sts.oauth.token_url }}
+  DIV client ID           : {{ .Values.iatp.sts.oauth.client.id }}
+  Client secret alias     : {{ .Values.iatp.sts.oauth.client.secret_alias }}
+  BDRS server URL         : {{ .Values.controlplane.bdrs.server.url | default "(not set)" }}
+
+  The DIV client secret must be present in the Vault under the alias above.
+  The data plane RSA token keypair is provisioned by the vault-init job under:
+    signer  (private) : {{ .Values.vaultInit.rsa.privateAlias }}
+    verifier (public) : {{ .Values.vaultInit.rsa.publicAlias }}
+
+================================================================================
+Secret storage
+================================================================================
+{{- if eq .Values.vaultInit.mode "hashicorp-persistent" }}
+Secrets are stored in a persistent HashiCorp Vault.
+{{- if .Values.vaultInit.autoInit.enabled }}
+{{- $vaultKeysSecretName := .Values.vaultInit.autoInit.keysSecretName }}
+{{- $vaultDeploymentTokenSecretName := include "conxdc.appTokenSecretName" . }}
+
+Vault is initialised and unsealed automatically (autoInit).
+  Unseal key + root token (job only) : secret/{{ $vaultKeysSecretName }}
+  Scoped deployment token (app only) : secret/{{ $vaultDeploymentTokenSecretName }}
+
+Check the seal status after a Vault pod restart:
+  kubectl -n {{ $namespace }} exec {{ .Release.Name }}-vault-0 -- \
+    wget -qO- http://127.0.0.1:8200/v1/sys/seal-status
+{{- else }}
+autoInit is disabled — the chart expects an already initialised and unsealed
+Vault reachable at {{ tpl .Values.vault.hashicorp.url . }}.
+{{- end }}
+{{- else }}
+Secrets are stored in a HashiCorp Vault running in dev mode (in-memory).
+All secrets are lost on Vault pod restart.
+{{- end }}
+
+{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
+
+vault-init job log:
+  kubectl -n {{ $namespace }} logs job/{{ .Values.fullnameOverride }}-vault-init
+{{- end }}
+
+================================================================================
+{{- if eq .Values.vaultInit.mode "hashicorp-dev" }}
+
+⚠ WARNING: Vault is running in dev mode (in-memory, no persistence).
+   All secrets are lost on Vault pod restart and a fixed root token is used.
+   For local testing only — set vaultInit.mode=hashicorp-persistent for persistence.
+{{- end }}
+
+{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") .Values.vaultInit.autoInit.enabled }}
+
+⚠ WARNING: autoInit is NOT production-safe. It uses a single unseal key
+   (key-shares=1) and stores the unseal key and root token as a Kubernetes
+   secret in this namespace. Anyone able to read that secret controls the Vault.
+   For production use KMS auto-unseal and external key management.
+
+⚠ WARNING: The Vault pod becomes sealed again after a restart and is NOT
+   unsealed automatically unless an unseal CronJob or KMS auto-unseal is in place.
+
+⚠ WARNING: The file audit device is not rotated automatically. Watch the
+   auditStorage PVC — a full audit volume can block the Vault.
+{{- end }}
+
+{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") (not .Values.vaultInit.autoInit.enabled) (eq (default "root" .Values.vault.hashicorp.token) "root") }}
+
+⚠ WARNING: vault.hashicorp.token is set to "root". Change it before production use.
+{{- end }}
+
+{{- if eq (default "password" .Values.postgresql.auth.password) "password" }}
+
+⚠ WARNING: PostgreSQL is using the default password.
+   Change postgresql.auth.password before production use.
+{{- end }}
+
+{{- if eq (default "password" .Values.controlplane.endpoints.management.authKey) "password" }}
+
+⚠ WARNING: The control plane management API key is the default ("password").
+   Change controlplane.endpoints.management.authKey before production use.
+{{- end }}
+
+{{- if eq (default "password" .Values.dataplane.endpoints.proxy.authKey) "password" }}
+
+⚠ WARNING: The data plane proxy API key is the default ("password").
+   Change dataplane.endpoints.proxy.authKey before production use.
+{{- end }}
