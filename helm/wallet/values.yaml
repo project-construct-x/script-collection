@@ -424,7 +424,7 @@ vaultInit:
   rsa:
     enabled: false
   # Regenerate secrets even if they already exist.
-  forceRegenerate: fals
+  forceRegenerate: false
   # Image for the vault-init job.
   image:
     repository: "alpine"
