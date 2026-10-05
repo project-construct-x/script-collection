@@ -12,12 +12,13 @@
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from uuid import uuid4
 
 from config import ConnectorConfig
 from http_client import ensure_success, request_json
-from payloads import asset_payload, contract_definition_payload, empty_policy_definition_payload
+from payloads import EDC_VOCAB, asset_payload, contract_definition_payload, empty_policy_definition_payload
+from util import _read
 
 def build_publish_ids(config: ConnectorConfig, asset_id: str | None = None) -> dict[str, str]:
     if asset_id:
@@ -145,6 +146,49 @@ def publish_asset(
         "proxyBody": proxy_body,
         "proxyQueryParams": proxy_query_params,
     }
+
+
+def unpublish_asset(config: ConnectorConfig, asset_id: str) -> dict[str, Any]:
+    """Remove contract definitions that select this asset by its exact ID."""
+    if not asset_id:
+        raise ValueError("asset_id is required")
+
+    definition_ids = []
+    offset = 0
+    while True:
+        status, body = request_json(
+            "POST",
+            f"{config.connector_management_api}/v3/contractdefinitions/request",
+            {"@context": {"@vocab": EDC_VOCAB}, "@type": "QuerySpec", "offset": offset, "limit": 100},
+            _management_headers(config),
+        )
+        ensure_success("list contract definitions", status, body, allowed=(200,))
+        for definition in body:
+            selectors = _read(definition, "assetsSelector", "edc:assetsSelector") or []
+            if isinstance(selectors, dict):
+                selectors = [selectors]
+            if any(
+                _read(selector, "operandLeft", "edc:operandLeft") == f"{EDC_VOCAB}id"
+                and _read(selector, "operator", "edc:operator") == "="
+                and _read(selector, "operandRight", "edc:operandRight") == asset_id
+                for selector in selectors
+            ):
+                definition_ids.append(definition["@id"])
+        if len(body) < 100:
+            break
+        offset += len(body)
+
+    if not definition_ids:
+        raise ValueError(f"No contract definition selects asset {asset_id!r} by its exact ID")
+
+    for definition_id in definition_ids:
+        status, body = request_json(
+            "DELETE",
+            f"{config.connector_management_api}/v3/contractdefinitions/{quote(definition_id, safe='')}",
+            headers=_management_headers(config),
+        )
+        ensure_success("delete contract definition", status, body, allowed=(200, 204))
+    return {"assetId": asset_id, "contractDefinitionIds": definition_ids}
 
 
 def _management_headers(config: ConnectorConfig) -> dict[str, str]:

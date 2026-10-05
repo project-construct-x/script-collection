@@ -19,6 +19,7 @@ accessing its wallet, Vault, or Docker host.
 - Operate a Docker-based connector deployment;
 - Operate an existing connector through its Management API;
 - Publish HTTP assets, policies, and contract definitions;
+- Unpublish assets without deleting their source data;
 - Retrieve catalogs and select offers;
 - Negotiate contracts;
 - Execute pull and `HttpData-PUSH` transfers;
@@ -216,6 +217,20 @@ where:
 Place the file in `share/` first and include `share/` in the source path when
 running the command from the project directory.
 
+Unpublish an asset:
+
+```bash
+edc unpublish --assetid <asset-id>
+```
+
+Omit `--assetid` to select an asset from your own catalog. Both modes ask for
+confirmation; `-y` skips it.
+
+Unpublishing removes contract definitions that select this asset by its exact
+ID, as created by `publish`. The asset, its policies, source data, and existing
+contracts remain. Shared contract definitions using other selectors are not
+changed; they must be adjusted separately if they also offer the asset.
+
 Request assets from another connector:
 
 ```bash
@@ -304,6 +319,16 @@ published = client.publish_http_asset(
 The source URL must be reachable from the provider Data Plane. A fixed asset ID
 produces stable policy and contract definition IDs. Existing objects are reused
 on HTTP `409`; changed data addresses are not updated automatically.
+
+### Unpublish an Asset
+
+```python
+client.unpublish_asset("demo-asset")
+```
+
+This uses the configured Management API and does not require wallet or Vault
+access. The returned dictionary contains the asset ID and the removed contract
+definition IDs. Republishing the same asset ID recreates its offer.
 
 ### Request an Asset
 
