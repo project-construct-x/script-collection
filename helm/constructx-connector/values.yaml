@@ -743,7 +743,7 @@ vault:
   hashicorp:
     # URL of the Vault instance reachable from within the cluster.
     url: "http://{{ .Release.Name }}-vault:8200"
-    # Vault token used by the wallet at runtime to read and write secrets.
+    # Vault token used by the connector at runtime to read and write secrets.
     # If vault.server.dev.enabled is true vault.hashicorp.token match with vault.server.dev.devRootToken.
     token: "root"
     # Timeout in seconds for Vault HTTP requests.
@@ -752,9 +752,9 @@ vault:
       enabled: true
       standbyOk: true
     paths:
-      # Mount path used for all wallet secrets
+      # Mount path used for all connector secrets. Must start with /v1/.
       secret: /v1/secret
-      # Health endpoint polled by the wallet and the vault-init job
+      # Health endpoint polled by the connector and the vault-init job
       health: /v1/sys/health
 
 vaultInit:
@@ -784,8 +784,6 @@ vaultInit:
     enabled: false
     # Name of the Kubernetes Secret the unseal key and root token are stored in.
     keysSecretName: "connector-vault-keys"
-    # KV-v2 secrets engine mount path (without leading /v1/). Must match vault.hashicorp.paths.secret.
-    kvMount: "secret"
     # File path for the audit device. Must reside within vault.server.auditStorage.mountPath.
     # Leave empty to skip enabling the audit device.
     auditPath: "/vault/audit/audit.log"

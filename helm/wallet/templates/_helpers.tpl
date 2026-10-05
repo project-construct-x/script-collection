@@ -113,3 +113,17 @@ Defines Vault Token Secret Name for autoInit
 {{- define "wallet.appTokenSecretName" -}}
 {{- printf "%s-vault-deployment-token" (include "wallet.fullname" .) -}}
 {{- end -}}
+
+{{/*
+Defines Vault KV-v2 secret path
+*/}}
+{{- define "wallet.vault.secretPath" -}}
+{{- .Values.vault.hashicorp.paths.secret | trimSuffix "/" -}}
+{{- end -}}
+
+{{/*
+Defines Vault KV-v2 mount name derived from the secret path: /v1/secret -> secret
+*/}}
+{{- define "wallet.vault.kvMount" -}}
+{{- include "wallet.vault.secretPath" . | trimPrefix "/v1/" -}}
+{{- end -}}

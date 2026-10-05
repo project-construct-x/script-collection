@@ -8,6 +8,12 @@ Call in any rendered template:
 {{- $allowed := .allowed -}}
 {{- $mode := $context.Values.vaultInit.mode -}}
 
+{{- /* 0. check if vault.hashicorp.paths.secret starts with /v1/ */ -}}
+{{- $secretPath := include "conxdc.vault.secretPath" $context -}}
+{{- if not (hasPrefix "/v1/" $secretPath) -}}
+{{- fail (printf "vault.hashicorp.paths.secret must start with /v1/ followed by a mount name (e.g. /v1/secret), got '%s'" $context.Values.vault.hashicorp.paths.secret) -}}
+{{- end -}}
+
 {{- /* 1. check if mode is in allowed list */ -}}
 {{- if not (has $mode $allowed) -}}
 {{- fail (printf "vaultInit.mode must be one of %v, got '%s'" $allowed $mode) -}}

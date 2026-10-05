@@ -239,7 +239,7 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vault.hashicorp.timeout` | int | `30` | Vault HTTP client timeout in seconds. |
 | `vault.hashicorp.healthCheck.enabled` | bool | `true` | Whether the wallet checks Vault health on startup. |
 | `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
-| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all issuer-wallet secrets. |
+| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all issuer-wallet secrets. Must start with /v1/. |
 | `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the issuer-wallet and vault-init job. |
 
 ### `vaultInit`
@@ -258,7 +258,6 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vaultInit.image.tag` | string | `3.20` | Tag of the vault-init job image. |
 | `vaultInit.autoInit.enabled` | bool | `false` | Auto-initialise and unseal a persistent Vault. `hashicorp-persistent` only. Non-production. |
 | `vaultInit.autoInit.keysSecretName` | string | `wallet-vault-keys` | Secret holding the unseal key and root token. |
-| `vaultInit.autoInit.kvMount` | string | `secret` | KV-v2 engine mount path (`vault.hashicorp.paths.secret` without leading `/v1/`). |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File audit device path. Empty to skip enabling audit. |
 
 ## Sources

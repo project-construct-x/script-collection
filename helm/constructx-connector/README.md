@@ -389,7 +389,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | `vault.hashicorp.timeout` | int | `30` | Vault HTTP client timeout in seconds. |
 | `vault.hashicorp.healthCheck.enabled` | bool | `true` | Whether the connector checks Vault health on startup. |
 | `vault.hashicorp.healthCheck.standbyOk` | bool | `true` | Treat Vault HA standby nodes as healthy. |
-| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all connector secrets. |
+| `vault.hashicorp.paths.secret` | string | `/v1/secret` | Mount path for all connector secrets. Must start with /v1/. |
 | `vault.hashicorp.paths.health` | string | `/v1/sys/health` | Vault health endpoint polled by the connector and vault-init job. |
 
 ### `vaultInit`
@@ -407,7 +407,6 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | `vaultInit.image.tag` | string | `3.20` | Image tag for the vault-init job. |
 | `vaultInit.autoInit.enabled` | bool | `false` | Automatic init/unseal of a persistent Vault. Only for `mode=hashicorp-persistent`. Non-prod only (single unseal key, keys stored as a cluster Secret). |
 | `vaultInit.autoInit.keysSecretName` | string | `connector-vault-keys` | Name of the Kubernetes Secret storing the unseal key and root token. |
-| `vaultInit.autoInit.kvMount` | string | `secret` | KV-v2 secrets engine mount path (without leading `/v1/`). Must match `vault.hashicorp.paths.secret`. |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File path for the audit device. Must reside within `vault.server.auditStorage.mountPath`. Leave empty to skip enabling the audit device. |
 
 ### `networkPolicy`

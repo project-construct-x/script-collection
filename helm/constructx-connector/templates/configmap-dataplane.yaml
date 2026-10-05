@@ -83,7 +83,7 @@ data:
   EDC_VAULT_HASHICORP_TIMEOUT_SECONDS: {{ .Values.vault.hashicorp.timeout | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: {{ .Values.vault.hashicorp.healthCheck.enabled | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_STANDBY_OK: {{ .Values.vault.hashicorp.healthCheck.standbyOk | quote }}
-  EDC_VAULT_HASHICORP_API_SECRET_PATH: {{ .Values.vault.hashicorp.paths.secret | quote }}
+  EDC_VAULT_HASHICORP_API_SECRET_PATH: {{ include "conxdc.vault.secretPath" . | quote }}
   EDC_VAULT_HASHICORP_API_HEALTH_CHECK_PATH: {{ .Values.vault.hashicorp.paths.health | quote }}
   {{- if .Values.vault.hashicorp.paths.folder }}
   EDC_VAULT_HASHICORP_FOLDER: {{ .Values.vault.hashicorp.paths.folder | quote }}

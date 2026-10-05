@@ -59,7 +59,7 @@ spec:
             - name: VAULT_TOKEN
               value: {{ .Values.vault.hashicorp.token | quote }}
             - name: VAULT_SECRET_PATH
-              value: {{ .Values.vault.hashicorp.paths.secret | quote }}
+              value: {{ include "issuer-wallet.vault.secretPath" . | quote }}
             - name: VAULT_HEALTH_PATH
               value: {{ .Values.vault.hashicorp.paths.health | quote }}
             - name: FORCE_REGENERATE
@@ -87,7 +87,7 @@ spec:
             - name: KEYS_SECRET_NAME
               value: {{ .Values.vaultInit.autoInit.keysSecretName | quote }}
             - name: KV_MOUNT
-              value: {{ .Values.vaultInit.autoInit.kvMount | quote }}
+              value: {{ include "issuer-wallet.vault.kvMount" . | quote }}
             - name: AUDIT_PATH
               value: {{ .Values.vaultInit.autoInit.auditPath | quote }}
             - name: APP_TOKEN_SECRET_NAME
