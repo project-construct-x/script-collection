@@ -6,7 +6,8 @@ Call in any rendered template:
 {{- define "issuer-wallet.validateVaultInit" -}}
 {{- $context := .context -}}
 {{- $allowed := .allowed -}}
-{{- $mode := $context.Values.vaultInit.mode -}}
+{{- $mode := include "issuer-wallet.vault.mode" $context -}}
+{{- $autoInit := eq (include "issuer-wallet.vault.autoInit.enabled" $context) "true" -}}
 
 {{- /* 0. check if vault.hashicorp.paths.secret starts with /v1/ */ -}}
 {{- $secretPath := include "issuer-wallet.vault.secretPath" $context -}}
@@ -24,19 +25,19 @@ Call in any rendered template:
   {{- if and $context.Values.install.vault (not $context.Values.vault.server.dev.enabled) -}}
   {{- fail "vaultInit.mode=hashicorp-dev requires vault.server.dev.enabled=true" -}}
   {{- end -}}
-  {{- if and $context.Values.install.vault (ne $context.Values.vault.hashicorp.token $context.Values.vault.server.dev.devRootToken) -}}
+  {{- if and $context.Values.install.vault (ne (include "issuer-wallet.vault.token" $context) $context.Values.vault.server.dev.devRootToken) -}}
   {{- fail "vaultInit.mode=hashicorp-dev requires vault.hashicorp.token to match vault.server.dev.devRootToken" -}}
   {{- end -}}
 {{- else if eq $mode "hashicorp-persistent" -}}
   {{- if and $context.Values.install.vault $context.Values.vault.server.dev.enabled -}}
   {{- fail "vaultInit.mode=hashicorp-persistent requires vault.server.dev.enabled=false" -}}
   {{- end -}}
-  {{- if and $context.Values.install.vault $context.Values.vaultInit.autoInit.enabled (not $context.Values.vault.server.dataStorage.enabled) -}}
+  {{- if and $context.Values.install.vault $autoInit (not $context.Values.vault.server.dataStorage.enabled) -}}
   {{- fail "autoInit with hashicorp-persistent requires vault.server.dataStorage.enabled=true" -}}
   {{- end -}}
   
   {{- /* Validate ServiceAccount with enabled autoInit */ -}}
-  {{- if $context.Values.vaultInit.autoInit.enabled -}}
+  {{- if $autoInit -}}
     {{- if and (not $context.Values.serviceAccount.create) (not $context.Values.serviceAccount.name) -}}
     {{- fail "vaultInit.autoInit requires either serviceAccount.create=true or a pre-created serviceAccount.name (autoInit needs a ServiceAccount with automountServiceAccountToken=true)" -}}
     {{- end -}}
@@ -53,7 +54,7 @@ Call in any rendered template:
 {{- end -}}
 
 {{- /* 3. check whether persistent mode is set with autoInit */ -}}
-{{- if and $context.Values.vaultInit.autoInit.enabled (ne $mode "hashicorp-persistent") -}}
+{{- if and $autoInit (ne $mode "hashicorp-persistent") -}}
 {{- fail "vaultInit.autoInit.enabled=true is only valid with vaultInit.mode=hashicorp-persistent" -}}
 {{- end -}}
 {{- end -}}

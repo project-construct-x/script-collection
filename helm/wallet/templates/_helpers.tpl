@@ -101,13 +101,6 @@ Defines AES-Key-Alias
 {{- end -}}
 
 {{/* 
-Defines if the vault-init job for hashicorp vault does run
-*/}}
-{{- define "wallet.vaultInit.jobEnabled" -}}
-{{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
-{{- end -}}
-
-{{/* 
 Defines Vault Token Secret Name for autoInit
 */}}
 {{- define "wallet.appTokenSecretName" -}}
@@ -115,10 +108,11 @@ Defines Vault Token Secret Name for autoInit
 {{- end -}}
 
 {{/*
-Defines Vault KV-v2 secret path
+Defines Vault KV-v2 secret path. Overrides with global, if set.
 */}}
 {{- define "wallet.vault.secretPath" -}}
-{{- .Values.vault.hashicorp.paths.secret | trimSuffix "/" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "secretPath" .Values.vault.hashicorp.paths.secret $global | trimSuffix "/" -}}
 {{- end -}}
 
 {{/*
@@ -126,4 +120,59 @@ Defines Vault KV-v2 mount name derived from the secret path: /v1/secret -> secre
 */}}
 {{- define "wallet.vault.kvMount" -}}
 {{- include "wallet.vault.secretPath" . | trimPrefix "/v1/" -}}
+{{- end -}}
+
+{{/*
+Override local Vault values with globals, if set.
+/}}
+{{- define "wallet.vault.url" -}}
+{{- $global := .Values.global | default dict -}}
+{{- tpl (dig "vault" "url" .Values.vault.hashicorp.url $global) . -}}
+{{- end -}}
+
+{{- define "wallet.vault.token" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "token" .Values.vault.hashicorp.token $global -}}
+{{- end -}}
+
+{{- define "wallet.vault.mode" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "mode" .Values.vaultInit.mode $global -}}
+{{- end -}}
+
+{{/* 
+Defines if the vault-init job for hashicorp vault does run
+*/}}
+{{- define "wallet.vaultInit.jobEnabled" -}}
+{{- $mode := include "wallet.vault.mode" . -}}
+{{- and .Values.vaultInit.enabled (has $mode (list "hashicorp-dev" "hashicorp-persistent")) -}}
+{{- end -}}
+
+{{- define "wallet.vault.autoInit.enabled" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "autoInit" "enabled" .Values.vaultInit.autoInit.enabled $global | toString -}}
+{{- end -}}
+
+{{- define "wallet.vault.autoInit.keysSecretName" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "autoInit" "keysSecretName" .Values.vaultInit.autoInit.keysSecretName $global -}}
+{{- end -}}
+
+{{- define "wallet.vault.autoInit.auditPath" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "vault" "autoInit" "auditPath" .Values.vaultInit.autoInit.auditPath $global -}}
+{{- end -}}
+
+{{/*
+Override local PSQL values with globals, if set. 
+*/}}
+{{- define "wallet.postgresql.jdbcUrl" -}}
+{{- $global := .Values.global | default dict -}}
+{{- if dig "postgresql" "host" "" $global -}}
+{{- printf "jdbc:postgresql://%s:%v/%s"
+      (tpl (dig "postgresql" "host" "" $global) .)
+      (dig "postgresql" "port" 5432 $global)
+      .Values.postgresql.auth.database -}}
+{{- else -}}
+{{- tpl .Values.postgresql.jdbcUrl . -}}
 {{- end -}}

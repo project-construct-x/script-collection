@@ -55,9 +55,9 @@ spec:
       serviceAccountName: {{ include "issuer-wallet.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.wallet.podSecurityContext | nindent 8 }}
-    {{- if or .Values.wallet.initContainers .Values.customCaCerts .Values.vaultInit.autoInit.enabled }}
+    {{- if or .Values.wallet.initContainers .Values.customCaCerts eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
       initContainers:
-      {{- if .Values.vaultInit.autoInit.enabled }}
+      {{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
         - name: wait-for-app-token
           image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
           command: ["/bin/sh","-c"]
@@ -155,7 +155,7 @@ spec:
               value: {{ $value | quote }}
           {{- end }}
             # Overrides Vault Token from Values File with generated Token from Vault Initialization
-          {{- if .Values.vaultInit.autoInit.enabled }}
+          {{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
             - name: EDC_VAULT_HASHICORP_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -216,7 +216,7 @@ spec:
             secretName: {{ .Values.fullnameOverride }}-sql-vault-aes
             defaultMode: 0400
       {{- end }}
-      {{- if .Values.vaultInit.autoInit.enabled }}
+      {{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
         - name: vault-app-token
           secret:
             secretName: {{ include "issuer-wallet.appTokenSecretName" . }}

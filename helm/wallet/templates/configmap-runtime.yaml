@@ -58,7 +58,7 @@ data:
   #####################
   ## HASHICORP VAULT ##
   #####################
-  EDC_VAULT_HASHICORP_URL: {{ tpl .Values.vault.hashicorp.url . | quote }}
+  EDC_VAULT_HASHICORP_URL: {{ include "wallet.vault.url" . | quote }}
   EDC_VAULT_HASHICORP_TIMEOUT_SECONDS: {{ .Values.vault.hashicorp.timeout | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: {{ .Values.vault.hashicorp.healthCheck.enabled | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_STANDBY_OK: {{ .Values.vault.hashicorp.healthCheck.standbyOk | quote }}

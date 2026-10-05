@@ -54,14 +54,14 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
-      {{- if .Values.vaultInit.autoInit.enabled }}
+      {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
       automountServiceAccountToken: true
       {{- end }}
       securityContext:
         {{- toYaml .Values.controlplane.podSecurityContext | nindent 8 }}
-      {{- if or .Values.controlplane.initContainers .Values.customCaCerts .Values.vaultInit.autoInit.enabled }}
+      {{- if or .Values.controlplane.initContainers .Values.customCaCerts eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
       initContainers:
-      {{- if .Values.vaultInit.autoInit.enabled }}
+      {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
         # wait until the vault-init job created the shared scoped app-token secret
         - name: wait-for-app-token
           image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
@@ -159,7 +159,7 @@ spec:
                 {{ printf "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=%v" .Values.controlplane.debug.port }}
           {{- end }}
           {{- end }}
-          {{- if .Values.vaultInit.autoInit.enabled }}
+          {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
             # Overrides Vault Token from Values File with generated Token from Vault Initialization
             - name: EDC_VAULT_HASHICORP_TOKEN
               valueFrom:
@@ -233,7 +233,7 @@ spec:
       {{- end }}
         - name: "tmp"
           emptyDir: { }
-      {{- if .Values.vaultInit.autoInit.enabled }}
+      {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
         - name: vault-app-token
           secret:
             secretName: {{ include "conxdc.appTokenSecretName" . }}

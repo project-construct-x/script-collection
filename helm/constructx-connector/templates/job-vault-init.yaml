@@ -42,7 +42,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
-{{- if .Values.vaultInit.autoInit.enabled }}
+{{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
       # Ensure that SA Token is mounted
       automountServiceAccountToken: true
 {{- end }}
@@ -56,9 +56,9 @@ spec:
               exec sh /tmp/init.sh
           env:
             - name: VAULT_ADDR
-              value: {{ tpl .Values.vault.hashicorp.url . | quote }}
+              value: {{ include "conxdc.vault.url" . | quote }}
             - name: VAULT_TOKEN
-              value: {{ .Values.vault.hashicorp.token | quote }}
+              value: {{ include "conxdc.vault.token" . | quote }}
             - name: VAULT_SECRET_PATH
               value: {{ include "conxdc.vault.secretPath" . | quote }}
             - name: VAULT_HEALTH_PATH
@@ -77,7 +77,7 @@ spec:
               value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
             - name: RSA_PUB_ALIAS
               value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
-          {{- if .Values.vaultInit.autoInit.enabled }}
+          {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
             # --- Auto-Init (hashicorp-persistent mode only) ---
             - name: AUTO_INIT
               value: "true"
@@ -86,11 +86,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: KEYS_SECRET_NAME
-              value: {{ .Values.vaultInit.autoInit.keysSecretName | quote }}
+              value: {{ include "conxdc.vault.autoInit.keysSecretName" . | quote }}
             - name: KV_MOUNT
               value: {{ include "conxdc.vault.kvMount" . | quote }}
             - name: AUDIT_PATH
-              value: {{ .Values.vaultInit.autoInit.auditPath | quote }}
+              value: {{ include "conxdc.vault.autoInit.auditPath" . | quote }}
             - name: APP_TOKEN_SECRET_NAME
               value: {{ include "conxdc.appTokenSecretName" . | quote }}
             - name: APP_POLICY_NAME

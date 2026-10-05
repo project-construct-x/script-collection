@@ -37,4 +37,4 @@ data:
 
   # default
   EDC_SQL_SCHEMA_AUTOCREATE: {{ $postgresql.schemaAutocreate | default true | quote }}
-  EDC_DATASOURCE_DEFAULT_URL: {{ tpl .Values.postgresql.jdbcUrl . | quote }}
+  EDC_DATASOURCE_DEFAULT_URL: {{ include "issuer-wallet.postgresql.jdbcUrl" . | quote }}

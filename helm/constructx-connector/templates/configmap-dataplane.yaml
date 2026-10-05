@@ -79,7 +79,7 @@ data:
   #########
   # VAULT #
   #########
-  EDC_VAULT_HASHICORP_URL: {{ tpl .Values.vault.hashicorp.url . | quote }}
+  EDC_VAULT_HASHICORP_URL: {{ include "conxdc.vault.url" . | quote }}
   EDC_VAULT_HASHICORP_TIMEOUT_SECONDS: {{ .Values.vault.hashicorp.timeout | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: {{ .Values.vault.hashicorp.healthCheck.enabled | quote }}
   EDC_VAULT_HASHICORP_HEALTH_CHECK_STANDBY_OK: {{ .Values.vault.hashicorp.healthCheck.standbyOk | quote }}
@@ -102,7 +102,7 @@ data:
   ##############
   # Datasource #
   ##############
-  EDC_DATASOURCE_DEFAULT_URL: {{ tpl .Values.postgresql.jdbcUrl . | quote }}
+  EDC_DATASOURCE_DEFAULT_URL: {{ include "conxdc.postgresql.jdbcUrl" . | quote }}
 
   #################
   # TOKEN REFRESH #

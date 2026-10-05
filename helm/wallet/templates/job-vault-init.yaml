@@ -41,7 +41,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ include "wallet.serviceAccountName" . }}
-{{- if .Values.vaultInit.autoInit.enabled }}
+{{- if eq (include "wallet.vault.autoInit.enabled" .) "true" }}
       # Ensure that SA Token is mounted
       automountServiceAccountToken: true
 {{- end }}
@@ -55,9 +55,9 @@ spec:
               exec sh /tmp/init.sh
           env:
             - name: VAULT_ADDR
-              value: {{ tpl .Values.vault.hashicorp.url . | quote }}
+              value: {{ include "wallet.vault.url" . | quote }}
             - name: VAULT_TOKEN
-              value: {{ .Values.vault.hashicorp.token | quote }}
+              value: {{ include "wallet.vault.token" . | quote }}
             - name: VAULT_SECRET_PATH
               value: {{ include "wallet.vault.secretPath" . | quote }}
             - name: VAULT_HEALTH_PATH
@@ -76,7 +76,7 @@ spec:
               value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
             - name: RSA_PUB_ALIAS
               value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
-          {{- if .Values.vaultInit.autoInit.enabled }}
+          {{- if eq (include "wallet.vault.autoInit.enabled" .) "true" }}
             # --- Auto-Init (hashicorp-persistent mode only) ---
             - name: AUTO_INIT
               value: "true"
@@ -85,11 +85,11 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: KEYS_SECRET_NAME
-              value: {{ .Values.vaultInit.autoInit.keysSecretName | quote }}
+              value: {{ include "wallet.vault.autoInit.keysSecretName" . | quote }}
             - name: KV_MOUNT
               value: {{ include "wallet.vault.kvMount" . | quote }}
             - name: AUDIT_PATH
-              value: {{ .Values.vaultInit.autoInit.auditPath | quote }}
+              value: {{ include "wallet.vault.autoInit.auditPath" . | quote }}
             - name: APP_TOKEN_SECRET_NAME
               value: {{ include "wallet.appTokenSecretName" . | quote }}
             - name: APP_POLICY_NAME

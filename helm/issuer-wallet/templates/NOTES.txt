@@ -87,8 +87,8 @@
 
 {{- else if eq .Values.vaultInit.mode "hashicorp-persistent" }}
   Secrets are stored in a persistent HashiCorp Vault.
-{{- if .Values.vaultInit.autoInit.enabled }}
-{{- $vaultKeysSecretName := .Values.vaultInit.autoInit.keysSecretName }}
+{{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
+{{- $vaultKeysSecretName := include "issuer-wallet.vault.autoInit.keysSecretName" . }}
 {{- $vaultDeploymentTokenSecretName := include "issuer-wallet.appTokenSecretName" . }}
 
   Vault is initialised and unsealed automatically (autoInit).
@@ -124,7 +124,7 @@
     For local testing only — set vaultInit.mode=hashicorp-persistent or postgres for persistence.
 {{- end }}
 
-{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") .Values.vaultInit.autoInit.enabled }}
+{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
 
   ⚠ WARNING: autoInit is NOT production-safe. It uses a single unseal key
     (key-shares=1) and stores the unseal key and root token as a Kubernetes
@@ -138,7 +138,7 @@
   ⚠ WARNING: The file audit device is not rotated automatically. Watch the
     auditStorage PVC — a full audit volume can block the Vault.
 {{- end }}
-{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") (not .Values.vaultInit.autoInit.enabled) (eq (default "root" .Values.vault.hashicorp.token) "root") }}
+{{- if and (eq .Values.vaultInit.mode "hashicorp-persistent") (not eq (include "issuer-wallet.vault.autoInit.enabled" .) "true") (eq (default "root" .Values.vault.hashicorp.token) "root") }}
 
   ⚠ WARNING: vault.hashicorp.token is set to "root". Change it before production use.
 {{- end }}
