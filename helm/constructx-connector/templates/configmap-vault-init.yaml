@@ -19,7 +19,7 @@
 
 # this configmap contains the initialization script to generate and store aes and rsa keys into the vault.
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
+{{- if eq (include "conxdc.vaultInit.jobEnabled" .) "true" }}
 ---
 apiVersion: v1
 kind: ConfigMap

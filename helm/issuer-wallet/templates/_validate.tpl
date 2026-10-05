@@ -1,9 +1,9 @@
 {{/*
 Validates vaultInit.mode against allowed values and against the matching Vault sub-chart values. 
 Call in any rendered template:
-  {{- include "common.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent" "postgres")) -}}
+  {{- include "issuer-wallet.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent" "postgres")) -}}
 */}}
-{{- define "common.validateVaultInit" -}}
+{{- define "issuer-wallet.validateVaultInit" -}}
 {{- $context := .context -}}
 {{- $allowed := .allowed -}}
 {{- $mode := $context.Values.vaultInit.mode -}}

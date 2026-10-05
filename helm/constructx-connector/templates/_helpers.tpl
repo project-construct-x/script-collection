@@ -190,7 +190,7 @@ Defines mapping for RSA Key Aliases
 {{/* 
 Defines if the vault-init job for hashicorp vault does run
 */}}
-{{- define "common.vaultInit.jobEnabled" -}}
+{{- define "conxdc.vaultInit.jobEnabled" -}}
 {{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
 {{- end -}}
 

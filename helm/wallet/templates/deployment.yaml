@@ -21,7 +21,7 @@
 #
 
 {{- $fullName := include "wallet.fullname" . -}}
-{{- include "common.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
+{{- include "wallet.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
 
 apiVersion: apps/v1
 kind: Deployment

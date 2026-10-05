@@ -22,7 +22,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{- include "common.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
+{{- include "conxdc.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
 ---
 apiVersion: apps/v1
 kind: Deployment

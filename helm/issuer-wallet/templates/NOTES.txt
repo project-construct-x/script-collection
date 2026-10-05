@@ -74,7 +74,7 @@
 
 {{- if eq .Values.vaultInit.mode "postgres" }}
   Secrets are stored in the PostgreSQL SQL vault (no HashiCorp Vault).
-{{- if eq (include "common.vaultInit.sqlAesEnabled" .) "true" }}
+{{- if eq (include "issuer-wallet.vaultInit.sqlAesEnabled" .) "true" }}
 {{- $alias := include "issuer-wallet.aesKeyAlias" . }}
 {{- $secretName := printf "%s-sql-vault-aes" .Values.fullnameOverride }}
 
@@ -105,7 +105,7 @@
   All secrets are lost on Vault pod restart.
 {{- end }}
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
+{{- if eq (include "issuer-wallet.vaultInit.jobEnabled" .) "true" }}
 
   vault-init job log:
     kubectl -n {{ $namespace }} logs job/{{ .Values.fullnameOverride }}-vault-init

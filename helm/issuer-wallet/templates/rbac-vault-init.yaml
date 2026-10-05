@@ -18,7 +18,7 @@
 #################################################################################
 
 
-{{- if and (eq (include "common.vaultInit.jobEnabled" .) "true") .Values.vaultInit.autoInit.enabled -}}
+{{- if and (eq (include "issuer-wallet.vaultInit.jobEnabled" .) "true") .Values.vaultInit.autoInit.enabled -}}
 {{- $fullName := include "issuer-wallet.fullname" . }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

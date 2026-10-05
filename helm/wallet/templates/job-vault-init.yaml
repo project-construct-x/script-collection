@@ -17,7 +17,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" -}}
+{{- if eq (include "wallet.vaultInit.jobEnabled" .) "true" -}}
 {{- $fullName := include "wallet.fullname" . }}
 apiVersion: batch/v1
 kind: Job

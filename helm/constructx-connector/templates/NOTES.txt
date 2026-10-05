@@ -136,7 +136,7 @@ Secrets are stored in a HashiCorp Vault running in dev mode (in-memory).
 All secrets are lost on Vault pod restart.
 {{- end }}
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
+{{- if eq (include "conxdc.vaultInit.jobEnabled" .) "true" }}
 
 vault-init job log:
   kubectl -n {{ $namespace }} logs job/{{ .Values.fullnameOverride }}-vault-init

@@ -121,14 +121,14 @@ Defines if Hashicorp Vault is used in general
 {{/* 
 Defines if the vault-init job for hashicorp vault does run
 */}}
-{{- define "common.vaultInit.jobEnabled" -}}
+{{- define "issuer-wallet.vaultInit.jobEnabled" -}}
 {{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
 {{- end -}}
 
 {{/* 
 Defines if the psql-vault AES secret rendering does run 
 */}}
-{{- define "common.vaultInit.sqlAesEnabled" -}}
+{{- define "issuer-wallet.vaultInit.sqlAesEnabled" -}}
 {{- and .Values.vaultInit.enabled (eq .Values.vaultInit.mode "postgres") -}}
 {{- end -}}
 

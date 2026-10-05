@@ -92,7 +92,7 @@
   All secrets are lost on Vault pod restart.
 {{- end }}
 
-{{- if eq (include "common.vaultInit.jobEnabled" .) "true" }}
+{{- if eq (include "wallet.vaultInit.jobEnabled" .) "true" }}
 
   vault-init job log:
     kubectl -n {{ $namespace }} logs job/{{ .Values.fullnameOverride }}-vault-init
