@@ -19,6 +19,7 @@ from pydantic import ValidationError
 
 from client import ConnectorClient
 from config import ConnectorConfig
+from util import dsp_endpoint_for_protocol
 
 ENV_FILE = ".env"
 LOCAL_FILE_SERVER_CONTAINER = "local-webserver"
@@ -161,6 +162,49 @@ def command_publish(args: argparse.Namespace) -> None:
     print("Published asset", published)
 
 
+def command_unpublish(args: argparse.Namespace) -> None:
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
+    config = ConnectorConfig.from_env(ENV_FILE)
+    client = ConnectorClient(config)
+    asset_id = args.assetid
+    if not asset_id:
+        catalog = client.fetch_catalog(
+            peer_did=config.participant_did,
+            peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
+        )
+        print(catalog)
+        if not catalog:
+            print("No published assets.")
+            return
+        while True:
+            choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
+            try:
+                index = int(choice)
+            except ValueError:
+                print("Please enter a valid integer.")
+                continue
+            if 0 <= index < len(catalog):
+                asset_id = catalog.select_offer(index=index).asset_id
+                break
+            print(f"Index must be between 0 and {len(catalog) - 1}.")
+
+    if not args.y:
+        answer = input(f"Unpublish asset {asset_id!r}? Existing contracts and source data remain. [yes/No] ")
+        if answer.strip().lower() not in ("y", "yes"):
+            print("Aborted.")
+            return
+    client.unpublish_asset(asset_id)
+    catalog = client.fetch_catalog(
+        peer_did=config.participant_did,
+        peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
+    )
+    if any(offer.asset_id == asset_id for offer in catalog):
+        raise RuntimeError("Asset is still offered by another contract definition; shared definitions were not changed")
+    print(f"Unpublished asset {asset_id}")
+
+
 def command_send_file(args: argparse.Namespace) -> None:
     if not Path(ENV_FILE).exists():
         print("No environment file found. Run edc config first.")
@@ -234,6 +278,11 @@ def build_parser() -> argparse.ArgumentParser:
     publish_p.add_argument("--source", required=True, help="Source URL or path under share/")
     publish_p.add_argument("--content-type", default="application/json", help="json, txt, png, or explicit MIME type")
     publish_p.set_defaults(func=command_publish)
+
+    unpublish_p = sub.add_parser("unpublish", help="Remove an asset's catalog offer without deleting its data")
+    unpublish_p.add_argument("--assetid", help="Asset ID; omit for interactive selection from your own catalog")
+    unpublish_p.add_argument("-y", action="store_true", help="Skip confirmation")
+    unpublish_p.set_defaults(func=command_unpublish)
 
     request_p = sub.add_parser("request", help="Request catalog and optionally transfer an asset")
     request_p.add_argument("--did", required=True, help="Peer participant DID")
