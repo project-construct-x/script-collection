@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 import time
@@ -6,7 +17,6 @@ from typing import Any
 from config import ConnectorConfig
 from exceptions import ConnectorError
 from http_client import ensure_success, request_json
-
 
 def request_membership_credential(config: ConnectorConfig, participant_api_key: str) -> dict[str, Any]:
     payload = {
@@ -21,7 +31,7 @@ def request_membership_credential(config: ConnectorConfig, participant_api_key: 
     }
     status, body = request_json(
         "POST",
-        f"{config.wallet_identity_api}/v1alpha/participants/{config.participant_context_id}/credentials/request",
+        f"{config.wallet_identity_api}/v1beta/participants/{config.participant_context_id}/credentials/request",
         payload,
         {"x-api-key": participant_api_key},
     )
@@ -37,7 +47,7 @@ def request_membership_credential(config: ConnectorConfig, participant_api_key: 
 def list_credentials(config: ConnectorConfig, participant_api_key: str) -> list[dict[str, Any]]:
     status, body = request_json(
         "GET",
-        f"{config.wallet_identity_api}/v1alpha/participants/{config.participant_context_id}/credentials",
+        f"{config.wallet_identity_api}/v1beta/participants/{config.participant_context_id}/credentials",
         headers={"x-api-key": participant_api_key},
     )
     ensure_success("list participant credentials", status, body, allowed=(200,))

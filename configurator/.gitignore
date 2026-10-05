@@ -14,5 +14,6 @@ __pycache__/
 build/
 dist/
 downloads/
+uploads/
 share
 .letsencrypt

@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -7,7 +18,6 @@ from typing import Self
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 class ConnectorConfig(BaseSettings):
     """Runtime settings shared by connector lifecycle and data exchange operations."""
@@ -23,6 +33,7 @@ class ConnectorConfig(BaseSettings):
     connector_management_api: str = ""
     connector_management_api_key: str = "change-me"
     protocol: str = "dataspace-protocol-http:2025-1"
+    use_edge_proxy: bool = False
 
     participant_did: str = ""
     participant_context_id: str = ""
@@ -68,7 +79,7 @@ class ConnectorConfig(BaseSettings):
         if not self.participant_issuer_service_url:
             self.participant_issuer_service_url = (
                 f"https://{self.connector_domain}"
-                f"/api/issuance/v1/participants/{self.participant_context_id}"
+                f"/api/issuance/v1beta/participants/{self.participant_context_id}"
             )
         # CONNECTOR_MANAGEMENT_API
         if not self.connector_management_api:
@@ -85,7 +96,6 @@ class ConnectorConfig(BaseSettings):
             "CONNECTOR_DOMAIN": self.connector_domain,
             "PARTICIPANT_DID": self.participant_did,
             "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
-            "TRUSTED_ISSUER_DID": self.trusted_issuer_did,
             "CONNECTOR_MANAGEMENT_API_KEY": self.connector_management_api_key,
         }
 
@@ -102,11 +112,6 @@ class ConnectorConfig(BaseSettings):
             "CONNECTOR_DOMAIN": self.connector_domain,
             "PARTICIPANT_DID": self.participant_did,
             "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
-            "TRUSTED_ISSUER_DID": self.trusted_issuer_did,
-            "PARTICIPANT_CREDENTIAL_SERVICE_URL": self.participant_credential_service_url,
-            "PARTICIPANT_ISSUER_SERVICE_URL": self.participant_issuer_service_url,
-            "WALLET_SUPERUSER_KEY": self.wallet_superuser_key,
-            "VAULT_TOKEN": self.vault_token,
             "CONNECTOR_MANAGEMENT_API_KEY": self.connector_management_api_key,
         }
         invalid = [
@@ -114,9 +119,6 @@ class ConnectorConfig(BaseSettings):
             for name, value in placeholders.items()
             if "example.org" in value or "change-me" in value
         ]
-        if not self.wallet_superuser_key.startswith("YWRtaW4."):
-            invalid.append("WALLET_SUPERUSER_KEY (expected Identity Hub token prefix YWRtaW4.)")
-
         if invalid:
             errors.append(f"[INVALID]: {', '.join(invalid)}")
 
@@ -140,6 +142,22 @@ class ConnectorConfig(BaseSettings):
             self.downloads_dir = (stack_dir / self.downloads_dir).resolve()
             # print("Updating DOWNLOADS_DIR to", self.stack_dir)
         return self
+
+    def validate_local_onboarding(self) -> None:
+        """Validate settings used only to create a local wallet participant."""
+
+        values = {
+            "TRUSTED_ISSUER_DID": self.trusted_issuer_did,
+            "WALLET_SUPERUSER_KEY": self.wallet_superuser_key,
+            "VAULT_TOKEN": self.vault_token,
+        }
+        invalid = [
+            name
+            for name, value in values.items()
+            if not value.strip() or "example.org" in value or "change-me" in value
+        ]
+        if invalid:
+            raise ValueError(f"[INVALID]: {', '.join(invalid)}")
 
     @property
     def dsp_endpoint(self) -> str:

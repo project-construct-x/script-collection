@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,7 +18,6 @@ from uuid import uuid4
 from config import ConnectorConfig
 from http_client import ensure_success, request_json
 from payloads import asset_payload, contract_definition_payload, empty_policy_definition_payload
-
 
 def build_publish_ids(config: ConnectorConfig, asset_id: str | None = None) -> dict[str, str]:
     if asset_id:

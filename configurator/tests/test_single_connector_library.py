@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 import json
@@ -25,7 +36,7 @@ def test_load_config_maps_identity_values_and_resolves_paths(tmp_path: Path) -> 
     assert config.wallet_identity_api == "http://127.0.0.1:20100/api/identity"
     assert config.wallet_superuser_key == "YWRtaW4.test-token"
     assert config.participant_credential_service_url == "https://connector.test.local/api/credentials/v1/participants/participant"
-    assert config.participant_issuer_service_url == "https://connector.test.local/api/issuance/v1/participants/participant"
+    assert config.participant_issuer_service_url == "https://connector.test.local/api/issuance/v1beta/participants/participant"
     assert config.participant_dsp_callback_address == "https://connector.test.local/dsp"
     assert config.dsp_endpoint == "https://connector.test.local/dsp/2025-1"
     assert config.participant_dataplane_public_url == "https://connector.test.local/public"

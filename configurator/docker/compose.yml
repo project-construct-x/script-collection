@@ -62,17 +62,14 @@ services:
       - edc-network
 
   edc-vault:
-    image: vault:1.13.3
+    image: ${VAULT_IMAGE:-ghcr.io/project-construct-x/hashimock:latest}
+    pull_policy: missing
     restart: unless-stopped
-    command: server -dev -dev-root-token-id=${VAULT_TOKEN:?set VAULT_TOKEN in .env} -dev-listen-address=0.0.0.0:8200
     environment:
-      SKIP_SETCAP: "true"
-      SKIP_CHOWN: "true"
-    healthcheck:
-      test: [ "CMD", "sh", "-c", "VAULT_ADDR=http://127.0.0.1:8200 vault status >/dev/null 2>&1" ]
-      interval: 4s
-      timeout: 3s
-      retries: 30
+      HASHIMOCK_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+      HASHIMOCK_DATA_DIR: /data/secrets
+    volumes:
+      - vault_data:/data/secrets
     ports:
       - "127.0.0.1:${VAULT_PORT:-28200}:8200"
     networks:
@@ -82,7 +79,7 @@ services:
     image: alpine:3.19
     depends_on:
       edc-vault:
-        condition: service_healthy
+        condition: service_started
     environment:
       VAULT_ADDR: http://edc-vault:8200
       VAULT_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
@@ -108,7 +105,7 @@ services:
 
 
   edc-wallet:
-    image: ${WALLET_IMAGE:-ghcr.io/project-construct-x/wallet:0.17.0-1}
+    image: ${WALLET_IMAGE:-ghcr.io/project-construct-x/wallet:0.18.0-1}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
@@ -160,7 +157,7 @@ services:
 
   controlplane:
     image: ${CONTROLPLANE_IMAGE:-con-x-controlplane-postgresql-hashicorp-vault:latest}
-    pull_policy: never
+    pull_policy: missing
     restart: unless-stopped
     depends_on:
       postgres:
@@ -170,19 +167,7 @@ services:
       edc-wallet:
         condition: service_started
     environment:
-      tx.edc.postgresql.migration.asset.enabled: "false"
-      tx.edc.postgresql.migration.agreementbpns.enabled: "false"
-      tx.edc.postgresql.migration.bpn.enabled: "false"
-      tx.edc.postgresql.migration.contractdefinition.enabled: "false"
-      tx.edc.postgresql.migration.contractnegotiation.enabled: "false"
-      tx.edc.postgresql.migration.dataplaneinstance.enabled: "false"
-      tx.edc.postgresql.migration.edr.enabled: "false"
-      tx.edc.postgresql.migration.federatedcatalog.enabled: "false"
-      tx.edc.postgresql.migration.jti-validation.enabled: "false"
-      tx.edc.postgresql.migration.policy-monitor.enabled: "false"
-      tx.edc.postgresql.migration.policy.enabled: "false"
-      tx.edc.postgresql.migration.transferprocess.enabled: "false"
-      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
@@ -190,6 +175,7 @@ services:
       edc.iam.sts.oauth.client.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
       edc.iam.issuer.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
       edc.participant.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.participant.context.id: ${PARTICIPANT_CONTEXT_ID:?set PARTICIPANT_CONTEXT_ID in .env}
       edc.hostname: controlplane
       edc.dsp.callback.address: ${PARTICIPANT_DSP_CALLBACK_ADDRESS:-https://${CONNECTOR_DOMAIN:?set CONNECTOR_DOMAIN in .env}/dsp}
       web.http.port: 9000
@@ -211,9 +197,9 @@ services:
       edc.vault.hashicorp.url: http://edc-vault:8200
       edc.vault.hashicorp.health.check.enabled: "true"
       edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      tx.edc.iam.iatp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
-      tx.edc.iam.iatp.default-scopes.membership.type: MembershipCredential
-      tx.edc.iam.iatp.default-scopes.membership.operation: read
+      tx.edc.iam.dcp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
+      tx.edc.iam.dcp.default-scopes.membership.type: MembershipCredential
+      tx.edc.iam.dcp.default-scopes.membership.operation: read
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 15s
@@ -238,7 +224,7 @@ services:
 
   dataplane:
     image: ${DATAPLANE_IMAGE:-con-x-dataplane-postgresql-hashicorp-vault:latest}
-    pull_policy: never
+    pull_policy: missing
     restart: unless-stopped
     depends_on:
       controlplane:
@@ -263,13 +249,15 @@ services:
       edc.vault.hashicorp.url: http://edc-vault:8200
       edc.vault.hashicorp.health.check.enabled: "true"
       edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
       edc.iam.sts.oauth.token.url: http://edc-wallet:9292/api/sts/token
       edc.iam.sts.oauth.client.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
       edc.iam.issuer.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.participant.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
+      edc.participant.context.id: ${PARTICIPANT_CONTEXT_ID:?set PARTICIPANT_CONTEXT_ID in .env}
     entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
     ports:
       - "127.0.0.1:${DATAPLANE_PORT:-29600}:9500"
@@ -284,6 +272,7 @@ services:
 
 volumes:
   postgres_data:
+  vault_data:
 
 networks:
   edc-network:

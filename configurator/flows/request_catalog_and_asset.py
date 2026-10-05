@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 import json
 import sys
 
@@ -25,13 +36,7 @@ def run_request_asset(peer_did: str, peer_dsp: str, asset_id: str = "", asset_in
     else:
         print(f"REQUESTING selection from {peer_did} via {peer_dsp}")
 
-    config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
-
-    try:
-        client.check_configuration()
-    except Exception:
-        raise SystemExit("Error during EDC stack check. Setup connector first!") from None
 
     print("\nRequesting catalog...")
     catalog = client.fetch_catalog(peer_did=peer_did, peer_dsp=peer_dsp)

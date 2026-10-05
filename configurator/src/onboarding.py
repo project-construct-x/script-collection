@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 from typing import Any
@@ -11,10 +22,10 @@ from credentials import (
 from identity import create_or_reuse_participant, write_participant_secret, wait_for_membership_credential
 from state import load_state, remember_public_values, save_state
 
-
 def initialize_participant(config: ConnectorConfig) -> dict[str, str]:
     """Create the participant locally and store its client secret in Vault."""
 
+    config.validate_local_onboarding()
     state = load_state(config)
     participant = create_or_reuse_participant(config, state)
     state.update(participant)

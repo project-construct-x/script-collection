@@ -1,5 +1,19 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 import argparse
+import mimetypes
 import sys
+from pathlib import Path
+from urllib.parse import quote, urlparse
 
 from pydantic import ValidationError
 
@@ -7,6 +21,67 @@ from client import ConnectorClient
 from config import ConnectorConfig
 
 ENV_FILE = ".env"
+LOCAL_FILE_SERVER_CONTAINER = "local-webserver"
+CONTENT_TYPE_ALIASES = {
+    "json": "application/json",
+    "png": "image/png",
+    "txt": "text/plain",
+}
+UPLOADS_DIRECTORY = Path("uploads")
+
+
+def resolve_publish_source(asset_source: str) -> str:
+    parsed = urlparse(asset_source)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return asset_source
+
+    share_dir = (Path.cwd() / "share").resolve()
+    source = Path(asset_source).resolve()
+    try:
+        relative_source = source.relative_to(share_dir)
+    except ValueError as exc:
+        raise ValueError("source must be an HTTP(S) URL or a file inside share/") from exc
+    if not source.is_file():
+        raise ValueError(f"source file does not exist: {source}")
+    return f"http://{LOCAL_FILE_SERVER_CONTAINER}/{quote(relative_source.as_posix())}"
+
+
+def resolve_content_type(content_type: str) -> str:
+    return CONTENT_TYPE_ALIASES.get(content_type.lower(), content_type)
+
+
+def select_file(file_path: str | None) -> Path:
+    if file_path:
+        selected_file = Path(file_path)
+        if not selected_file.is_file():
+            raise ValueError(f"file does not exist: {selected_file}")
+        return selected_file
+
+    uploads_directory = Path.cwd() / UPLOADS_DIRECTORY
+    if not uploads_directory.is_dir():
+        raise ValueError(f"uploads directory does not exist: {uploads_directory}")
+
+    files = sorted(
+        (path for path in uploads_directory.iterdir() if path.is_file()),
+        key=lambda path: path.name.lower(),
+    )
+    if not files:
+        raise ValueError(f"uploads directory is empty: {uploads_directory}")
+
+    print("Select a file from uploads/:")
+    for index, path in enumerate(files):
+        print(f"[{index}] {path.name}")
+
+    while True:
+        choice = input(f"Select a file (0-{len(files) - 1}): ")
+        try:
+            index = int(choice)
+        except ValueError:
+            print("Please enter a valid integer.")
+            continue
+        if 0 <= index < len(files):
+            return files[index]
+        print(f"Index must be between 0 and {len(files) - 1}.")
 
 
 def command_start(args: argparse.Namespace) -> None:
@@ -20,6 +95,10 @@ def command_start(args: argparse.Namespace) -> None:
         if answer not in ("y", "yes", "ok"):
             print("Aborted.")
             return
+
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
 
     from flows.simple_connector_flow import run_start
     run_start()
@@ -41,15 +120,26 @@ def command_stop(args: argparse.Namespace) -> None:
 
 
 def command_status(_: argparse.Namespace) -> None:
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
     client.status()
 
+def command_config(args: argparse.Namespace) -> None:
+    from flows.setup import run_setup, show_configuration
 
-def command_init(_: argparse.Namespace) -> None:
-    print("Initializing the connector is not available yet!")
+    if args.show:
+        show_configuration()
+        return
+
+    run_setup()
 
 def command_request(args: argparse.Namespace) -> None:
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
     from flows.request_catalog_and_asset import run_request_asset
     if not args.did or not args.endpoint:
         print("Please specify the peer DID and endpoint to start a request!")
@@ -58,8 +148,65 @@ def command_request(args: argparse.Namespace) -> None:
 
 
 def command_publish(args: argparse.Namespace) -> None:
-    from flows.publish_asset import run_publish
-    run_publish(args.label, args.source)
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
+    config = ConnectorConfig.from_env(ENV_FILE)
+    client = ConnectorClient(config)
+    published = client.publish_http_asset(
+        label=args.label,
+        source_url=resolve_publish_source(args.source),
+        content_type=resolve_content_type(args.content_type),
+    )
+    print("Published asset", published)
+
+
+def command_send_file(args: argparse.Namespace) -> None:
+    if not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.")
+        return
+
+    selected_file = select_file(args.file)
+    config = ConnectorConfig.from_env(ENV_FILE)
+    client = ConnectorClient(config)
+    catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
+    print(catalog)
+
+    if args.assetid:
+        offer = catalog.select_offer(asset_id=args.assetid)
+    else:
+        if len(catalog) == 0:
+            raise RuntimeError("Peer catalog is empty")
+        while True:
+            choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
+            try:
+                index = int(choice)
+            except ValueError:
+                print("Please enter a valid integer.")
+                continue
+            if 0 <= index < len(catalog):
+                offer = catalog.select_offer(index=index)
+                break
+            print(f"Index must be between 0 and {len(catalog) - 1}.")
+
+    endpoint = client.negotiate_endpoint_reference(
+        peer_did=args.did,
+        peer_dsp=args.endpoint,
+        offer=offer,
+    )
+    status, body, content_type = client.send_file_via_endpoint(
+        endpoint["endpointData"],
+        selected_file,
+    )
+    if not 200 <= status < 300:
+        raise RuntimeError(f"File request failed with HTTP {status}")
+
+    media_type = content_type.split(";", 1)[0].strip().lower()
+    extension = mimetypes.guess_extension(media_type) or ".bin"
+    output = Path(args.output) if args.output else config.downloads_dir / f"{selected_file.stem}{extension}"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(body)
+    print(f"Saved {len(body)} bytes ({content_type}) to {output}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -78,8 +225,9 @@ def build_parser() -> argparse.ArgumentParser:
     status_p = sub.add_parser("status", help="Status of the connector client")
     status_p.set_defaults(func=command_status)
 
-    init_p = sub.add_parser("init", help="Initializes a connector")
-    init_p.set_defaults(func=command_init)
+    config_p = sub.add_parser("config", help="Configuration setting wizard")
+    config_p.add_argument("-s", "--show", action="store_true", help="Show the current connector configuration")
+    config_p.set_defaults(func=command_config)
 
     publish_p = sub.add_parser("publish", help="Publish an asset")
     publish_p.add_argument("--label", required=True, help="Human-readable asset label")
@@ -93,6 +241,14 @@ def build_parser() -> argparse.ArgumentParser:
     request_p.add_argument("--assetid", help="Select offer by asset ID")
     # request_p.add_argument("--offer-id",  help="Select offer by offer ID")
     request_p.set_defaults(func=command_request)
+
+    send_file_p = sub.add_parser("send-file", help="Send a file to an HTTP asset")
+    send_file_p.add_argument("--did", required=True, help="Peer participant DID")
+    send_file_p.add_argument("--endpoint", required=True, help="Peer DSP endpoint/base URL")
+    send_file_p.add_argument("--assetid", help="Target asset ID; omit for interactive selection")
+    send_file_p.add_argument("--file", help="File to send; omit to select from uploads/")
+    send_file_p.add_argument("--output", help="Response file; defaults to downloads/<input-name>.<response-type>")
+    send_file_p.set_defaults(func=command_send_file)
 
     return parser
 

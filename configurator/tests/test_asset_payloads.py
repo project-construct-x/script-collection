@@ -1,7 +1,17 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 from payloads import asset_payload
-
 
 def test_http_read_asset_has_no_proxy_flags() -> None:
     payload = asset_payload(
@@ -17,7 +27,6 @@ def test_http_read_asset_has_no_proxy_flags() -> None:
     assert "proxyBody" not in data_address
     assert "proxyPath" not in data_address
     assert "proxyQueryParams" not in data_address
-
 
 def test_write_asset_proxies_only_method_and_body() -> None:
     payload = asset_payload(
@@ -36,7 +45,6 @@ def test_write_asset_proxies_only_method_and_body() -> None:
     assert data_address["proxyBody"] == "true"
     assert "proxyPath" not in data_address
     assert "proxyQueryParams" not in data_address
-
 
 def test_query_asset_can_proxy_query_params_without_body_or_path() -> None:
     payload = asset_payload(

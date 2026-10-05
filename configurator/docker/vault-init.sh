@@ -7,6 +7,18 @@ TOKEN="${VAULT_TOKEN:?missing VAULT_TOKEN}"
 DP_KEY_PREFIX="${DP_KEY_PREFIX:?missing DP_KEY_PREFIX}"
 WALLET_AES_ALIAS="${WALLET_AES_ALIAS:?missing WALLET_AES_ALIAS}"
 
+wait_for_vault() {
+  attempts=0
+  until curl -fsS "$VAULT/v1/sys/health" >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 30 ]; then
+      echo "Vault Mock did not become ready in time" >&2
+      exit 1
+    fi
+    sleep 2
+  done
+}
+
 write_secret() {
   key="$1"
   value="$2"
@@ -58,6 +70,7 @@ create_aes_key() {
   write_secret "$alias" "$(openssl rand -base64 32 | tr -d '\n')"
 }
 
+wait_for_vault
 create_rsa_pair "$DP_KEY_PREFIX"
 create_aes_key "$WALLET_AES_ALIAS"
 

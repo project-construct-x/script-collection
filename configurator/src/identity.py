@@ -1,3 +1,14 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
 import json
@@ -8,10 +19,9 @@ from urllib import parse
 from config import ConnectorConfig
 from http_client import ensure_success, request_json, require_field
 
-
 def local_credentials(config) -> list[dict[str, Any]]:
     state = json.loads(config.state_path.read_text())
-    url = f"{config.wallet_identity_api}/v1alpha/participants/{config.participant_context_id}/credentials"
+    url = f"{config.wallet_identity_api}/v1beta/participants/{config.participant_context_id}/credentials"
     status, body = request_json("GET", url, headers={"x-api-key": state["apiKey"]})  # this should be private!
     if status != 200:
         raise RuntimeError(f"Wallet credential query failed with HTTP {status}: {body}")
@@ -40,7 +50,7 @@ def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) 
 
     # We found no api key or could not access the resources it refers to. Re-initialize wallet identity.
     payload = {
-        "roles": [],
+        "scopes": [],
         "serviceEndpoints": [
             {
                 "id": f"{config.participant_context_id}-CredentialService",
@@ -64,7 +74,7 @@ def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) 
     }
     status, body = request_json(
         "POST",
-        f"{config.wallet_identity_api}/v1alpha/participants",
+        f"{config.wallet_identity_api}/v1beta/participants",
         payload,
         {"x-api-key": config.wallet_superuser_key},
     )

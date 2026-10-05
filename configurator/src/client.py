@@ -1,6 +1,19 @@
+# Copyright (c) 2026 Bergische Universität Wuppertal
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License, Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Contributors:
+#   TMDT der Bergischen Universität Wuppertal
+
 from __future__ import annotations
 
+import mimetypes
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from catalog import Catalog, Offer
@@ -14,6 +27,7 @@ from request import (
     pull_data,
     request_asset,
     request_catalog,
+    request_endpoint as _request_endpoint,
     send_json_via_endpoint,
     wait_for_endpoint_data_reference, )
 from state import load_state
@@ -53,20 +67,13 @@ class ConnectorClient:
             # print(f"  Reason: {exc}")
             print("  Management API is unreachable or not authorized!")
 
-        print("  Checking credentials... ", end="")
-        try:
-            self.check_configuration()
-            print(f"{GREEN}OK{RESET}")
-        except ConnectorError as e:
-            print(f"{RED}FAILED{RESET}")
-            print(f"  Reason: {e}")
-            #print("Membership credentials could not be obtained! Check your configuration and EDC connection!")
-
 
     def bootstrap_participant(self) -> dict[str, str]:
         return initialize_participant(self.config)
 
     def request_membership_credential(self) -> dict[str, Any]:
+        if not self.config.trusted_issuer_did:
+            raise ValueError("TRUSTED_ISSUER_DID is required to request a membership credential")
         return request_membership_credential(self.config, self._participant_api_key())
 
     def list_credentials(self) -> list[dict[str, Any]]:
@@ -142,6 +149,28 @@ class ConnectorClient:
 
     def download_asset(self, asset_id: str, endpoint_data: dict[str, Any]) -> str:
         return pull_data(self.config, asset_id, endpoint_data)
+
+    def request_endpoint(self, endpoint_data: dict[str, Any], **options: Any) -> tuple[int, bytes, str]:
+        return _request_endpoint(endpoint_data, **options)
+
+    def send_file_via_endpoint(
+            self,
+            endpoint_data: dict[str, Any],
+            file_path: str,
+    ) -> tuple[int, bytes, str]:
+        source = Path(file_path)
+        try:
+            payload = source.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise ConnectorError("send-file supports UTF-8 text files only") from exc
+
+        content_type = mimetypes.guess_type(source.name)[0] or "text/plain"
+        return _request_endpoint(
+            endpoint_data,
+            method="POST",
+            payload=payload,
+            content_type=content_type,
+        )
 
     def send_json_via_endpoint(
             self,

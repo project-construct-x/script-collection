@@ -1,7 +1,7 @@
 # Construct-X EDC Python Library
 
-Authors:  
-Finn Elbl (felbl@uni-wuppertal.de) - TMDT - University of Wuppertal  
+Authors:
+Finn Elbl (felbl@uni-wuppertal.de) - TMDT - University of Wuppertal
 Alexander Paulus (paulus@uni-wuppertal.de) - TMDT - University of Wuppertal
 
 `cx_edc_client` is a small Python client for operating one Construct-X
@@ -11,10 +11,13 @@ onboarding, asset publication, catalog access, contract negotiation, transfers,
 and authorized HTTP requests through Endpoint Data References (EDRs).
 
 It packages a local Docker-based deployment of the essential components of an EDC.
+The client can also operate an existing, fully configured connector without
+accessing its wallet, Vault, or Docker host.
 
 ## Features
 
 - Operate a Docker-based connector deployment;
+- Operate an existing connector through its Management API;
 - Publish HTTP assets, policies, and contract definitions;
 - Retrieve catalogs and select offers;
 - Negotiate contracts;
@@ -27,18 +30,53 @@ issuer operator.
 ## Requirements
 
 - Python 3.11 or newer
-- Docker with the Compose plugin for lifecycle operations
-- Access to a compatible trusted issuer for membership credentials
-- Port 443 (and 80 if http is used) of the host machine have to be reachable from the internet
-- A valid domain for the machine's IP address
+- Docker with the Compose plugin for local lifecycle operations
+- Access to a compatible trusted issuer for local participant onboarding
+- Public TCP ports 80 and 443 for standalone HTTPS and ACME certificate issuance
+- A valid public domain for a local deployment
+- Compatible Control Plane and Data Plane images for the bundled deployment
 
 ## Setup
 
 ### Installation
-The python library has to be registered in order for the CLI commands to be available.  
+Run these commands from `configurator/` to install the library and its CLI:
 ```sh
-python -m pip install -e ".[dev]"
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 ```
+
+Use `pip install -e ".[dev]"` when developing or running the tests.
+
+### Runtime Images
+
+`edc start` uses the image references in `docker/.docker.env`. The Python
+library does not build Docker images. The bundled configuration was tested
+with Construct-X Wallet `0.18.0-1`, HashiMock, and the Control Plane and Data
+Plane built from `constructx-edc` commit
+`021daa740a74c4456a4a02782b88bbce0203247d`.
+
+The versioned plane image names in `docker/.docker.env` refer to local images,
+not published registry images. Before using the bundled deployment, build the
+matching images or obtain them from your deployment operator and update the
+references. Do not substitute unrelated `latest` images.
+
+To build the matching planes on a host with Docker and the required JDK:
+
+```bash
+git clone https://github.com/project-construct-x/constructx-edc.git
+cd constructx-edc
+git checkout 021daa740a74c4456a4a02782b88bbce0203247d
+./gradlew \
+  :edc-controlplane:edc-controlplane-construct-x:con-x-controlplane-postgresql-hashicorp-vault:dockerize \
+  :edc-dataplane:edc-dataplane-construct-x:con-x-dataplane-postgresql-hashicorp-vault:dockerize
+docker tag con-x-controlplane-postgresql-hashicorp-vault:latest con-x-controlplane-postgresql-hashicorp-vault:0.13.0-021daa74
+docker tag con-x-dataplane-postgresql-hashicorp-vault:latest con-x-dataplane-postgresql-hashicorp-vault:0.13.0-021daa74
+```
+
+The images must be available on the Docker host running the connector. Access
+to the Wallet and HashiMock images may require a GHCR login. Operating an
+existing connector through its Management API does not require local images.
 
 ### Configuration
 Create the runtime environment file from the shipped example
@@ -59,7 +97,7 @@ Important settings include:
 | `TRUSTED_ISSUER_DID`                    | did:web:<issuer-host>:<issuer-id>                                   | DID of the membership credential issuer.<br/>Provided by the dataspace operator. |
 | `ISSUER_CONTEXT`                        | con-x-issuer                                                        | Prodided by the dataspace operator                                               |
 | `TRUSTED_ISSUER_CREDENTIAL_SERVICE_URL` | https://<issuer-host>/api/credentials/v1/participants/<issuer-id>   | Provided by the dataspace operator.                                              |
-| `TRUSTED_ISSUER_ISSUANCE_SERVICE_URL`   | https://<issuer-host>/api/issuance/v1alpha/participants/<issuer-id> | Provided by the dataspace operator.                                              |
+| `TRUSTED_ISSUER_ISSUANCE_SERVICE_URL`   | https://<issuer-host>/api/issuance/v1beta/participants/<issuer-id> | Provided by the dataspace operator.                                              |
 
 The public paths can be overwritten by uncommenting the respective lines in .env.
 If not set explicitly, those values are generated using `CONNECTOR_DOMAIN` as a base URL.
@@ -69,7 +107,12 @@ If not set explicitly, those values are generated using `CONNECTOR_DOMAIN` as a 
 | `PARTICIPANT_DSP_CALLBACK_ADDRESS`   | https://<connector-domain>/dsp                                                | Public participant DSP base URL, auto-generated if not set        |
 | `PARTICIPANT_DATAPLANE_PUBLIC_URL`   | https://<connector-domain>/public                                             | Public participant dataplane URL, auto-generated if not set       |
 | `PARTICIPANT_CREDENTIAL_SERVICE_URL` | https://<connector-domain>/api/credentials/v1/participants/<participant-id>   | Public participant credential endpoint, auto-generated if not set |
-| `PARTICIPANT_ISSUER_SERVICE_URL`     | https://<connector-domain>/api/issuance/v1alpha/participants/<participant-id> | Public participant issuance endpoint, auto-generated if not set   |
+| `PARTICIPANT_ISSUER_SERVICE_URL`     | https://<connector-domain>/api/issuance/v1beta/participants/<participant-id> | Public participant issuance endpoint, auto-generated if not set   |
+| `CONNECTOR_MANAGEMENT_API`           | https://<connector-domain>/management                                         | Control Plane Management API, auto-generated if not set            |
+
+For peer catalog and contract requests, use the versioned DSP endpoint
+`https://<peer-domain>/dsp/2025-1`. The configured `/dsp` callback base shown by
+`edc status` is not the complete peer endpoint.
 
 The following settings should be changed to random secrets
 
@@ -81,19 +124,52 @@ The following settings should be changed to random secrets
 | `VAULT_TOKEN`                  | <random>         | Local Vault token               |
 | `CONNECTOR_MANAGEMENT_API_KEY` | <random>         | Control Plane API Key           |
 
-Relative paths are resolved against the current working directory. Placeholder
-domains and `change-me` values are rejected before onboarding.
+Relative paths are resolved against the current working directory. Connector
+settings are validated when the configuration is loaded. Wallet, Vault, and
+trusted issuer settings are validated only when local onboarding is started.
 
-> A guided setup script to create an initial config will be added in a later release.
+Run `edc config` to create or update the common connector settings
+interactively. Local deployment secrets still need to be set directly in
+`.env`.
+
+### Operate an Existing Connector
+
+An existing connector must already be deployed, onboarded, and equipped with a
+valid participant identity and membership credential. The library only needs
+access to its Management API and public DSP endpoint; it does not need direct
+access to the connector wallet or Vault.
+
+Configure these values in `.env`:
+
+```text
+CONNECTOR_DOMAIN=connector.example.org
+CONNECTOR_MANAGEMENT_API=https://connector.example.org/management
+CONNECTOR_MANAGEMENT_API_KEY=<management-api-key>
+PARTICIPANT_DID=did:web:connector.example.org:user
+PARTICIPANT_CONTEXT_ID=user
+PARTICIPANT_DSP_CALLBACK_ADDRESS=https://connector.example.org/dsp
+```
+
+`CONNECTOR_MANAGEMENT_API` and `PARTICIPANT_DSP_CALLBACK_ADDRESS` are generated
+from `CONNECTOR_DOMAIN` when they are not set explicitly.
+
+Verify the connection:
+
+```bash
+edc status
+```
+
+Afterwards, use `edc publish`, `edc request`, and `edc send-file` as described
+below. Do not run `edc start`; that command starts the bundled local deployment
+and requires the local wallet, Vault, and trusted issuer configuration.
 
 ## Connector Lifecycle
 
-The component functionality is provided through Docker containers.
-All containers are automatically started by the library.
->**The used Hashicorp vault is currently being operated in `dev` mode and stores credentials in memory only.
-> After a server restart or an EDC shutdown, these values have to be re-initialized!**
-
-The library will detect missing credentials and in most cases restore a working state automatically.
+The bundled local deployment is provided through Docker containers. It uses the
+Construct-X Vault Mock as a lightweight implementation of the HashiCorp Vault
+API for development and demonstrations. Secrets are stored in a persistent
+Docker volume and survive normal container and server restarts. Production
+deployments should use a properly secured secret-management system.
 
 #### Startup
 
@@ -111,7 +187,7 @@ The startup phase consists of these operations:
 Participant bootstrap state is stored in `.state/participant.json` unless configured otherwise.
 This file contains sensitive credentials and must not be committed or shared.
 
-If the python module has been installed (`python -m pip install -e ".[dev]"`), the EDC CLI becomes available via the `edc` command.
+After installing the Python package, the EDC CLI is available via the `edc` command.
 **Run this from the base directory, not within `src`!**
 
 Start the connector using:
@@ -128,7 +204,7 @@ Once the connector is running, assets can be published or requested at any time.
 Publish an asset:
 
 ```bash
-edc publish --label "Example Asset" --source http://localhost:8080/api/data
+edc publish --label "Example Asset" --source share/example.json --content-type json
 ```
 
 where:
@@ -136,6 +212,9 @@ where:
 - `--label` specifies the human-readable asset name.
 - `--source` specifies either an HTTP endpoint or a file located in the `share/` directory.
 - `--content-type` optionally specifies the asset's MIME type. Short forms such as `json`, `txt`, and `png` are also supported.
+
+Place the file in `share/` first and include `share/` in the source path when
+running the command from the project directory.
 
 Request assets from another connector:
 
@@ -150,6 +229,43 @@ To directly request a specific asset:
 ```bash
 edc request --did <participant-did> --endpoint <dsp-endpoint> --assetid <asset-id>
 ```
+
+### Call an HTTP Service with a Text File
+
+`edc send-file` sends the content of a local UTF-8 text file as an authorized
+HTTP `POST` request through an Endpoint Data Reference. It performs catalog
+discovery, contract negotiation, and EDR retrieval before calling the selected
+provider service. The HTTP response is stored in `downloads/`; its file
+extension is derived from the response `Content-Type`.
+
+Supported inputs include JSON, CSV, XML, and other UTF-8 text files.
+Binary input formats such as DOCX, PDF, ZIP, and images are not supported by
+this request path.
+
+The following tested counterpart is available on the external demo connector:
+
+```text
+Participant DID: did:web:dataspace-portal.com:dataspace-portal
+DSP endpoint:    https://dataspace-portal.com/dsp/2025-1
+```
+
+The service implementation is available separately in the
+[semantic-mapper repository](https://git.uni-wuppertal.de/tmdt/projects/construct-x/semantic-mapper)
+and can also be deployed with its included Docker Compose configuration.
+
+Send a delivery-note JSON file to its semantic mapping service:
+
+```bash
+edc send-file \
+  --did did:web:dataspace-portal.com:dataspace-portal \
+  --endpoint https://dataspace-portal.com/dsp/2025-1 \
+  --assetid delivery-note-semantic-mapper \
+  --file uploads/delivery-note.json
+```
+
+The mapped JSON response is saved as `downloads/delivery-note.json`. Omit
+`--file` to select a file from `uploads/` interactively. Omit `--assetid` to
+select a compatible service from the provider catalog.
 
 #### Shutdown
 
@@ -209,32 +325,14 @@ result = client.request_http_asset(
 
 ## Running the local EDC behind an external proxy
 
-By default, this setup terminates requests with TLS via traefik, using a LetsEncrypt certificate.
-In order to operate behind an external proxy that handles TLS, uncomment the following lines in `.env`.
+By default, this setup runs as a standalone HTTPS service and binds ports 80
+and 443. Set `USE_EDGE_PROXY=true` only when a separate edge proxy and the
+external Docker network `tmdt-edge-ingress` already exist.
 
-```
-#TRAEFIK_ENTRYPOINT=web
-#TRAEFIK_BIND_ADDRESS=127.0.0.1
-#TRAEFIK_HTTP_PORT=8080
-#TRAEFIK_HTTPS_PORT=8443
-```
-
-This will disable TLS resolution and set traefik to use HTTP only.
-The external proxy can then forward requests to traefik via `HTTP_PORT` and `HTTPS_PORT`.
-
-An example upstream NGINX config would be
-
-```
-location / { 
-proxy_pass http://127.0.0.1:8080; 
-proxy_set_header Host $host; 
-proxy_set_header X-Forwarded-Proto https; 
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
-proxy_http_version 1.1;
-}
-```
-
-Traefik runs in a closed network by default.
-Either add the proxy to the EDC Docker network or add the EDC Docker network to the proxy.
+With `USE_EDGE_PROXY=true`, `docker/compose.edge.yml` removes the connector
+Traefik's host port bindings and attaches it to `tmdt-edge-ingress` under the
+alias `constructx-edc`. The upstream edge proxy must terminate public TLS and
+forward HTTP to `http://constructx-edc:443`, preserving the original Host
+header. Port 443 is an internal HTTP listener in this mode.
 
 The respective EDC API documentation is available in the [constructx-edc repository](https://github.com/project-construct-x/constructx-edc).
