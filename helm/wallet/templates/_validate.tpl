@@ -15,17 +15,17 @@ Call in any rendered template:
 
 {{- /* 2. check values for inconsistency with given modes */ -}}
 {{- if eq $mode "hashicorp-dev" -}}
-  {{- if not $context.Values.vault.server.dev.enabled -}}
+  {{- if and $context.Values.install.vault (not $context.Values.vault.server.dev.enabled) -}}
   {{- fail "vaultInit.mode=hashicorp-dev requires vault.server.dev.enabled=true" -}}
   {{- end -}}
-  {{- if ne $context.Values.vault.hashicorp.token $context.Values.vault.server.dev.devRootToken -}}
+  {{- if and $context.Values.install.vault (ne $context.Values.vault.hashicorp.token $context.Values.vault.server.dev.devRootToken) -}}
   {{- fail "vaultInit.mode=hashicorp-dev requires vault.hashicorp.token to match vault.server.dev.devRootToken" -}}
   {{- end -}}
 {{- else if eq $mode "hashicorp-persistent" -}}
-  {{- if $context.Values.vault.server.dev.enabled -}}
+  {{- if and $context.Values.install.vault $context.Values.vault.server.dev.enabled -}}
   {{- fail "vaultInit.mode=hashicorp-persistent requires vault.server.dev.enabled=false" -}}
   {{- end -}}
-  {{- if and $context.Values.vaultInit.autoInit.enabled (not $context.Values.vault.server.dataStorage.enabled) -}}
+  {{- if and $context.Values.install.vault $context.Values.vaultInit.autoInit.enabled (not $context.Values.vault.server.dataStorage.enabled) -}}
   {{- fail "autoInit with hashicorp-persistent requires vault.server.dataStorage.enabled=true" -}}
   {{- end -}}
   
