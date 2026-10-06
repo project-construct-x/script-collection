@@ -74,7 +74,7 @@ data:
   EDC_VAULT_HASHICORP_API_HEALTH_CHECK_PATH: {{ .Values.vault.hashicorp.paths.health | quote }}
   {{- end }}
 
-  {{- if eq include "issuer-wallet.vault.mode" . "postgres" }}
+  {{- if eq (include "issuer-wallet.vault.mode" .) "postgres" }}
   #################
   ## SQL VAULT   ##
   #################

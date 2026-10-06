@@ -8,20 +8,22 @@ Expand the name of the chart.
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+If release name contains chart name it will be used as a full name. Overrides local fullname values with globals, if set.
 */}}
 {{- define "issuer-wallet.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-{{- end }}
+{{- $global := .Values.global | default dict -}}
+{{- $override := dig "wallet" "fullname" .Values.fullnameOverride $global -}}
+{{- if $override -}}
+{{- tpl $override . | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 
 {{/*
 Create chart name and version as used by the chart label.
@@ -105,6 +107,13 @@ Defines AES-Key-Alias
 {{- end -}}
 
 {{/*
+Defines Name of the Secret holding the database credentials
+*/}}
+{{- define "issuer-wallet.datasourceSecretName" -}}
+{{- printf "%s-datasource-credentials" (include "issuer-wallet.fullname" .) -}}
+{{- end -}}
+
+{{/*
 Defines Secret Directory for PSQL Vault
 */}}
 {{- define "issuer-wallet.sqlVaultDirectory" -}}
@@ -116,13 +125,6 @@ Defines if Hashicorp Vault is used in general
 */}}
 {{- define "issuer-wallet.usesVault" -}}
 {{- ne .Values.vaultInit.mode "postgres" -}}
-{{- end -}}
-
-{{/* 
-Defines if the vault-init job for hashicorp vault does run
-*/}}
-{{- define "issuer-wallet.vaultInit.jobEnabled" -}}
-{{- and .Values.vaultInit.enabled (or (eq .Values.vaultInit.mode "hashicorp-dev") (eq .Values.vaultInit.mode "hashicorp-persistent")) -}}
 {{- end -}}
 
 {{/* 
@@ -156,7 +158,7 @@ Defines Vault KV-v2 mount name derived from the secret path: /v1/secret -> secre
 
 {{/*
 Override local Vault values with globals, if set.
-/}}
+*/}}
 {{- define "issuer-wallet.vault.url" -}}
 {{- $global := .Values.global | default dict -}}
 {{- tpl (dig "vault" "url" .Values.vault.hashicorp.url $global) . -}}
@@ -207,4 +209,5 @@ Override local PSQL values with globals, if set.
       .Values.postgresql.auth.database -}}
 {{- else -}}
 {{- tpl .Values.postgresql.jdbcUrl . -}}
+{{- end -}}
 {{- end -}}

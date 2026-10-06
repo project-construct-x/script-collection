@@ -59,7 +59,7 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.controlplane.podSecurityContext | nindent 8 }}
-      {{- if or .Values.controlplane.initContainers .Values.customCaCerts eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
+      {{- if or .Values.controlplane.initContainers .Values.customCaCerts (eq (include "conxdc.vault.autoInit.enabled" .) "true") }}
       initContainers:
       {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
         # wait until the vault-init job created the shared scoped app-token secret

@@ -55,7 +55,7 @@ spec:
       serviceAccountName: {{ include "issuer-wallet.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.wallet.podSecurityContext | nindent 8 }}
-    {{- if or .Values.wallet.initContainers .Values.customCaCerts eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
+    {{- if or .Values.wallet.initContainers .Values.customCaCerts (eq (include "issuer-wallet.vault.autoInit.enabled" .) "true") }}
       initContainers:
       {{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
         - name: wait-for-app-token
