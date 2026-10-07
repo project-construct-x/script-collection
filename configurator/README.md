@@ -57,10 +57,9 @@ with Construct-X Wallet `0.18.0-1`, HashiMock, and the Control Plane and Data
 Plane built from `constructx-edc` commit
 `021daa740a74c4456a4a02782b88bbce0203247d`.
 
-The versioned plane image names in `docker/.docker.env` refer to local images,
-not published registry images. Before using the bundled deployment, build the
-matching images or obtain them from your deployment operator and update the
-references. Do not substitute unrelated `latest` images.
+**Note:** The Control Plane and Data Plane images currently need to be built
+locally before starting the connector. The versioned image names in
+`docker/.docker.env` refer to local images, not published registry images.
 
 To build the matching planes on a host with Docker and the required JDK:
 
@@ -190,6 +189,11 @@ This file contains sensitive credentials and must not be committed or shared.
 
 After installing the Python package, the EDC CLI is available via the `edc` command.
 **Run this from the base directory, not within `src`!**
+
+**Note:** Before starting the connector, register your wallet as a holder at
+the central issuer. Email your domain-based `did:web` (`PARTICIPANT_DID` in
+`.env`) to [david.goerzig@arena2036.de](mailto:david.goerzig@arena2036.de) and
+[saud.khan@arena2036.de](mailto:saud.khan@arena2036.de).
 
 Start the connector using:
 
