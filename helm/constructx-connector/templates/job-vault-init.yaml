@@ -48,7 +48,7 @@ spec:
 {{- end }}
       containers:
         - name: vault-init
-          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
+          image: {{ include "conxdc.vaultInit.image" . }}
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -67,16 +67,14 @@ spec:
               value: {{ .Values.vaultInit.forceRegenerate | quote }}
             # --- AES ---
             - name: AES_ENABLED
-              value: {{ .Values.vaultInit.aes.enabled | quote }}
-            - name: AES_ALIAS
-              value: {{ .Values.vaultInit.aes.alias | default "" | quote }}
+              value: "false"
             # --- RSA ---
             - name: RSA_ENABLED
               value: {{ .Values.vaultInit.rsa.enabled | quote }}
             - name: RSA_PRIV_ALIAS
-              value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
+              value: {{ include "conxdc.signerAlias" . | quote }}
             - name: RSA_PUB_ALIAS
-              value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
+              value: {{ include "conxdc.verifierAlias" . | quote }}
           {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
             # --- Auto-Init (hashicorp-persistent mode only) ---
             - name: AUTO_INIT

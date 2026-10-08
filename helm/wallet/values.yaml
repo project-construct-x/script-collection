@@ -37,6 +37,9 @@ nameOverride: "wallet"
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 
+# -- Add some custom labels
+customLabels: {}
+
 # -- Add custom ca certificates to the truststore
 customCaCerts: {}
 
@@ -68,9 +71,6 @@ wallet:
     port: 1045
     # If true, the JVM suspends on startup until a debugger connects
     suspendOnStart: false
-
-  # Public hostname of the wallet. Used to construct did:web URLs and ingress routing.
-  hostname: "wallet.staging.construct-x.net"
 
   # Super-user participant seeded on first startup by the super-user-seed-extension.
   # The api key is stored in Vault under the alias derived from the participant id.
@@ -186,13 +186,10 @@ wallet:
   ingresses:
     ## Public / Internet facing Ingress for the Presentation API
     - enabled: true
-      # -- The hostname to be used to precisely map incoming traffic onto the underlying network service
-      hostname: "wallet.staging.construct-x.net"
+      # -- The hostname to be used to precisely map incoming traffic onto the underlying network service -- empty = global.wallet.hostname
+      hostname: ""
       # -- Additional ingress annotations to add
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-staging
-        external-dns.alpha.kubernetes.io/hostname: "wallet.staging.construct-x.net"
-        external-dns.alpha.kubernetes.io/ttl: "300"
+      annotations: {}
       # -- EDC endpoints exposed by this ingress resource
       endpoints:
         - credentials
@@ -214,8 +211,8 @@ wallet:
         clusterIssuer: "letsencrypt-staging"
     ## Ingress for the Identity API, should not be internet facing
     - enabled: false
-      # -- The hostname to be used to precisely map incoming traffic onto the underlying network service
-      hostname: "wallet.staging.construct-x.net"
+      # -- The hostname to be used to precisely map incoming traffic onto the underlying network service -- empty = global.wallet.hostname
+      hostname: ""
       # -- Additional ingress annotations to add
       annotations: {}
       # -- EDC endpoints exposed by this ingress resource
@@ -327,8 +324,11 @@ tests:
   hookDeletePolicy: before-hook-creation,hook-succeeded
 
 postgresql:
-  # JDBC connection URL passed to the wallet runtime.
-  jdbcUrl: "jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/wallet"
+  host: ""
+  port: 5432
+  # JDBC connection URL passed to the edc runtime.
+  jdbcUrl: ""
+  jdbcParams: ""
   auth:
     # Name of the PostgreSQL database created on first start. Must match with postgresql.jdbcUrl path.
     database: "wallet"

@@ -17,7 +17,8 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{- if .Values.customCaCerts }}
+{{- $caCerts := include "issuer-wallet.customCaCerts" . | fromYaml }}
+{{- if $caCerts }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -27,5 +28,5 @@ metadata:
   labels:
     {{- include "issuer-wallet.labels" . | nindent 4 }}
 data:
-  {{- .Values.customCaCerts | toYaml | nindent 2 }}
+  {{- $caCerts | toYaml | nindent 2 }}
 {{- end }}

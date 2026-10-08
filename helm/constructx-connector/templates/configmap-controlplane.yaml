@@ -64,7 +64,7 @@ data:
   ###########
   # General #
   ###########
-  EDC_HOSTNAME: {{ .Values.controlplane.hostname | quote }}
+  EDC_HOSTNAME: {{ include "conxdc.serviceHostname" (dict "context" $ "plane" "controlplane") | quote }}
   EDC_SQL_SCHEMA_AUTOCREATE: {{ .Values.controlplane.schema.autocreate | quote }}
   EDC_RUNTIME_ID: {{ printf "%s-controlplane" (include "conxdc.fullname" .) | quote }}
 
@@ -75,9 +75,8 @@ data:
   ####################
   # ID CONFIGURATION #
   ####################
-  EDC_PARTICIPANT_ID: {{ .Values.iatp.id | required ".Values.iatp.id is required" | quote }}
-  EDC_IAM_ISSUER_ID: {{ .Values.iatp.id | required ".Values.iatp.id is required" | quote }}
-  EDC_IAM_TRUSTED-ISSUER_EXAMPLE_ID: {{ .Values.iatp.trustedIssuerId | required ".Values.iatp.trustedIssuerId is required" | quote }}
+  EDC_PARTICIPANT_ID: {{ include "conxdc.participantDid" . | quote }}
+  EDC_IAM_ISSUER_ID: {{ include "conxdc.participantDid" . | quote }}
   {{- range $index, $issuer := .Values.iatp.trustedIssuers }}
   {{- if eq (kindOf $issuer) "string" }}
   EDC_IAM_TRUSTED-ISSUER_{{ $index }}-ISSUER_ID: {{ $issuer | quote }}
@@ -115,7 +114,7 @@ data:
   # IATP / STS / DIV CONFIG #
   ###########################
   EDC_IAM_STS_OAUTH_TOKEN_URL: {{ .Values.iatp.sts.oauth.token_url | required ".Values.iatp.sts.oauth.token_url is required" | quote }}
-  EDC_IAM_STS_OAUTH_CLIENT_ID: {{ .Values.iatp.sts.oauth.client.id | required ".Values.iatp.sts.oauth.client.id is required" | quote }}
+  EDC_IAM_STS_OAUTH_CLIENT_ID: {{ include "conxdc.stsClientId" . | quote }}
   EDC_IAM_STS_OAUTH_CLIENT_SECRET_ALIAS: {{ .Values.iatp.sts.oauth.client.secret_alias | required ".Values.iatp.sts.oauth.client.secret_alias is required" | quote }}
   {{- if .Values.iatp.sts.div.url }}
   TX_EDC_IAM_STS_DIV_URL: {{ .Values.iatp.sts.div.url | quote }}
@@ -126,7 +125,7 @@ data:
   #############
   TX_EDC_DID_SERVICE_SELF_REGISTRATION_ENABLED: {{ .Values.iatp.didService.selfRegistration.enabled | quote }}
   TX_EDC_DID_SERVICE_SELF_DEREGISTRATION_ENABLED: {{ and (eq (int .Values.controlplane.replicaCount) 1) (not .Values.controlplane.autoscaling.enabled) | quote }}
-  TX_EDC_DID_SERVICE_SELF_REGISTRATION_ID: {{ .Values.iatp.didService.selfRegistration.id | quote }}
+  TX_EDC_DID_SERVICE_SELF_REGISTRATION_ID: {{ include "conxdc.selfRegistrationId" . | quote }}
   TX_EDC_DCP_CACHE_ENABLED: {{ .Values.iatp.cache.enabled | quote }}
   TX_EDC_DCP_CACHE_VALIDITY_SECONDS: {{ .Values.iatp.cache.validity | quote }}
 

@@ -1,131 +1,104 @@
 #################################################################################
 # Example override values — constructx-connector
-# Mode: hashicorp-persistent  (persistent HashiCorp Vault, auto-initialised)
+# Mode: hashicorp-persistent (persistent HashiCorp Vault, auto-initialised)
 #################################################################################
 
-shared:
-    connectorId: &connectorId did:web:user-wallet.staging.construct-x.net:user
-    secretAlias: &secretAlias usersecret
-    trustedIssuerId: &trustedIssuerId did:web:issuer.staging.construct-x.net:issuer
-    clusterIssuer: &clusterIssuer letsencrypt-staging
-    ingressClass: &ingressClass nginx
-    imagePullSecret: &imagePullSecret registry-creds
-    controlplaneFqdn: &controlplaneFqdn user-edc-controlplane.staging.construct-x.net
-    dataplaneFqdn: &dataplaneFqdn user-edc-dataplane.staging.construct-x.net
+install:
+  postgresql: true
+  vault: true
 
-nameOverride: user-edc
-fullnameOverride: user-edc
+# -- Values that occur more than once. In an umbrella chart they are set once for all charts.
+global:
+  participant:
+    # -- DID of the connector. Also used as STS client ID and self-registration ID.
+    did: "did:web:user-wallet.staging.construct-x.net:user"
+  connector:
+    controlplane:
+      # -- Public hostname of the control plane, used by all controlplane.ingresses without own hostname
+      hostname: "user-edc-controlplane.staging.construct-x.net"
+    dataplane:
+      # -- Public hostname of the data plane, used by all dataplane.ingresses without own hostname
+      hostname: "user-edc-dataplane.staging.construct-x.net"
+  ingress:
+    className: "nginx"
+    # -- Also sets the cert-manager.io/cluster-issuer annotation
+    clusterIssuer: "letsencrypt-staging"
 
-participant:
-    id: *connectorId
+nameOverride: "user-edc"
+fullnameOverride: "user-edc"
+
+# -- Used by the control plane and the data plane
+imagePullSecrets:
+  - name: "registry-creds"
 
 iatp:
-    id: *connectorId
-    trustedIssuerId: *trustedIssuerId
-    trustedIssuers:
-        - id: *trustedIssuerId
-    sts:
-        oauth:
-            token_url: https://user-wallet.staging.construct-x.net/api/sts/token
-            client:
-                id: *connectorId
-                secret_alias: *secretAlias
-    didService:
-        selfRegistration:
-            id: *connectorId
+  trustedIssuers:
+    - id: "did:web:issuer.staging.construct-x.net:issuer"
+  sts:
+    oauth:
+      token_url: "https://user-wallet.staging.construct-x.net/api/sts/token"
+      client:
+        secret_alias: "usersecret"
 
+# -- Secret initialisation
 vaultInit:
   mode: hashicorp-persistent
   enabled: true
   rsa:
+    enabled: true
     privateAlias: "user_priv"
     publicAlias: "user_pub"
   autoInit:
     enabled: true
 
 controlplane:
-    hostname: user-edc-controlplane
-    imagePullSecrets:
-        - name: *imagePullSecret
-    ingresses:
-        ## Public / Internet facing Ingress
-        - enabled: true
-          hostname: *controlplaneFqdn
-          annotations:
-              cert-manager.io/cluster-issuer: *clusterIssuer
-              external-dns.alpha.kubernetes.io/hostname: *controlplaneFqdn
-              external-dns.alpha.kubernetes.io/ttl: "300"
-          endpoints:
-              - protocol
-          className: *ingressClass
-          tls:
-              enabled: true
-              secretName: user-edc-cp-tls
-          certManager:
-              clusterIssuer: *clusterIssuer
-        ## Private / Intranet facing Ingress
-        - enabled: false
-          hostname: *controlplaneFqdn
-          annotations:
-              cert-manager.io/cluster-issuer: *clusterIssuer
-              external-dns.alpha.kubernetes.io/hostname: *controlplaneFqdn
-              external-dns.alpha.kubernetes.io/ttl: "300"
-          endpoints:
-              - management
-              - control
-              - validation
-              - metrics
-          className: *ingressClass
-          tls:
-              enabled: true
-              secretName: user-edc-cp-int-tls
-          certManager:
-              clusterIssuer: *clusterIssuer
+  ingresses:
+    ## Public / Internet facing Ingress
+    - enabled: true
+      annotations:
+        external-dns.alpha.kubernetes.io/ttl: "300"
+      endpoints: [protocol]
+      tls:
+        enabled: true
+        secretName: "user-edc-cp-tls"
+    ## Private / Intranet facing Ingress
+    - enabled: false
+      annotations:
+        external-dns.alpha.kubernetes.io/ttl: "300"
+      endpoints: [management, control, validation, metrics]
+      tls:
+        enabled: true
+        secretName: "user-edc-cp-int-tls"
 
 dataplane:
-    hostname: user-edc-dataplane
-    imagePullSecrets:
-        - name: *imagePullSecret
-    ingresses:
-        ## Public / Internet facing Ingress
-        - enabled: true
-          hostname: *dataplaneFqdn
-          annotations:
-              cert-manager.io/cluster-issuer: *clusterIssuer
-              external-dns.alpha.kubernetes.io/hostname: *dataplaneFqdn
-              external-dns.alpha.kubernetes.io/ttl: "300"
-          endpoints:
-              - public
-              - proxy
-          className: *ingressClass
-          tls:
-              enabled: true
-              secretName: user-edc-dp-tls
-          certManager:
-              clusterIssuer: *clusterIssuer
-        ## Private / Intranet facing Ingress
-        - enabled: false
-          hostname: *dataplaneFqdn
-          annotations:
-              cert-manager.io/cluster-issuer: *clusterIssuer
-              external-dns.alpha.kubernetes.io/hostname: *dataplaneFqdn
-              external-dns.alpha.kubernetes.io/ttl: "300"
-          endpoints:
-              - management
-              - control
-              - metrics
-          className: *ingressClass
-          tls:
-              enabled: true
-              secretName: user-edc-dp-int-tls
-          certManager:
-              clusterIssuer: *clusterIssuer
+  ingresses:
+    ## Public / Internet facing Ingress
+    - enabled: true
+      annotations:
+        external-dns.alpha.kubernetes.io/ttl: "300"
+      endpoints: [public, proxy]
+      tls:
+        enabled: true
+        secretName: "user-edc-dp-tls"
+    ## Private / Intranet facing Ingress
+    - enabled: false
+      annotations:
+        external-dns.alpha.kubernetes.io/ttl: "300"
+      endpoints: [management, control, metrics]
+      tls:
+        enabled: true
+        secretName: "user-edc-dp-int-tls"
 
 postgresql:
-    persistence:
-        enabled: true
-        size: 10Gi
-        storageClass: ""
+  auth:
+    database: "edc"
+    username: "user"
+    # WARNING: default password — change before use.
+    password: "password"
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
 
 vault:
   server:

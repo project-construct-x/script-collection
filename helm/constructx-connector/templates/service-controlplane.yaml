@@ -24,7 +24,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "conxdc.fullname" . }}-controlplane
+  name: {{ include "conxdc.serviceHostname" (dict "context" $ "plane" "controlplane") }}
   namespace: {{ .Release.Namespace }}
   {{- with .Values.controlplane.service.annotations }}
   annotations:

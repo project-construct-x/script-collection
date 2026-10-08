@@ -34,7 +34,7 @@ data:
   #######
   # API #
   #######
-  EDC_HOSTNAME: {{ .Values.wallet.hostname | quote }}
+  EDC_HOSTNAME: {{ include "wallet.serviceHostname" . | quote }}
   WEB_HTTP_PORT: {{ .Values.wallet.endpoints.default.port | quote }}
   WEB_HTTP_PATH: {{ .Values.wallet.endpoints.default.path | quote }}
   WEB_HTTP_IDENTITY_PORT: {{ .Values.wallet.endpoints.identity.port | quote }}

@@ -21,8 +21,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "wallet.fullname" . }}
+  name: {{ include "wallet.serviceHostname" . }}
   namespace: {{ .Release.Namespace | default "default" | quote }}
+  {{- with .Values.wallet.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "wallet.server.labels" . | nindent 4 }}
 spec:

@@ -1,29 +1,14 @@
 {{/*
+Defines the key of this chart below global (global.<key>.*) for values that differ per chart.
+*/}}
+{{- define "wallet.globalKey" -}}wallet{{- end -}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "wallet.name" -}}
-{{- default .Chart.Name .Values.nameOverride | replace "+" "_"  | trunc 63 | trimSuffix "-" -}}
+{{- default .Chart.Name .Values.nameOverride | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end }}
-
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name. Overrides local fullname values with globals, if set.
-*/}}
-{{- define "wallet.fullname" -}}
-{{- $global := .Values.global | default dict -}}
-{{- $override := dig "wallet" "fullname" .Values.fullnameOverride $global -}}
-{{- if $override -}}
-{{- tpl $override . | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- $name := default .Chart.Name .Values.nameOverride -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
 
 {{/*
 Create chart name and version as used by the chart label.
@@ -41,6 +26,9 @@ helm.sh/chart: {{ include "wallet.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.customLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -103,86 +91,57 @@ Defines AES-Key-Alias
 {{- end -}}
 
 {{/*
-Defines Name of the Secret holding the database credentials
+Defines the public hostname of the wallet (default ingress host, public URLs such as the statuslist callback).
+wallet.ingresses[0].hostname -> global.wallet.hostname
+A local value wins, so the defaults of wallet.ingresses[].hostname in values.yaml must stay empty.
+Not to be confused with the in-cluster hostname (EDC_HOSTNAME), see wallet.serviceHostname.
 */}}
-{{- define "wallet.datasourceSecretName" -}}
-{{- printf "%s-datasource-credentials" (include "wallet.fullname" .) -}}
-{{- end -}}
-
-{{/* 
-Defines Vault Token Secret Name for autoInit
-*/}}
-{{- define "wallet.appTokenSecretName" -}}
-{{- printf "%s-vault-deployment-token" (include "wallet.fullname" .) -}}
+{{- define "wallet.publicHostname" -}}
+{{- $global := .Values.global | default dict -}}
+{{- $local := "" -}}
+{{- with .Values.wallet.ingresses }}{{ $local = (index . 0).hostname | default "" }}{{ end -}}
+{{- $local | default (dig (include "wallet.globalKey" .) "hostname" "" $global) -}}
 {{- end -}}
 
 {{/*
-Defines Vault KV-v2 secret path. Overrides with global, if set.
+Defines the in-cluster hostname of the wallet, used for EDC_HOSTNAME.
+It always equals the name of the service (<fullname>), therefore it is not configurable.
 */}}
-{{- define "wallet.vault.secretPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "secretPath" .Values.vault.hashicorp.paths.secret $global | trimSuffix "/" -}}
+{{- define "wallet.serviceHostname" -}}
+{{- include "wallet.fullname" . | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Defines Vault KV-v2 mount name derived from the secret path: /v1/secret -> secret
+Defines the host of an ingress entry.
+wallet.ingresses[].hostname -> global.wallet.hostname
+A local value wins, so every entry can carry its own host. Entries without hostname use the global value.
+Usage inside range: {{ include "wallet.ingress.host" (dict "context" $ "item" .) }}
 */}}
-{{- define "wallet.vault.kvMount" -}}
-{{- include "wallet.vault.secretPath" . | trimPrefix "/v1/" -}}
+{{- define "wallet.ingress.host" -}}
+{{- $global := .context.Values.global | default dict -}}
+{{- .item.hostname | default (dig (include "wallet.globalKey" .context) "hostname" "" $global) -}}
 {{- end -}}
 
 {{/*
-Override local Vault values with globals, if set.
+Defines the name of an ingress resource: <fullname>-<index>, e.g. wallet-0.
+Independent of global values and ingresses[].hostname, so names stay stable and unique.
+Usage inside range: {{ include "wallet.ingress.name" (dict "context" $ "index" $index) }}
 */}}
-{{- define "wallet.vault.url" -}}
-{{- $global := .Values.global | default dict -}}
-{{- tpl (dig "vault" "url" .Values.vault.hashicorp.url $global) . -}}
-{{- end -}}
-
-{{- define "wallet.vault.token" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "token" .Values.vault.hashicorp.token $global -}}
-{{- end -}}
-
-{{- define "wallet.vault.mode" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "mode" .Values.vaultInit.mode $global -}}
-{{- end -}}
-
-{{/* 
-Defines if the vault-init job for hashicorp vault does run
-*/}}
-{{- define "wallet.vaultInit.jobEnabled" -}}
-{{- $mode := include "wallet.vault.mode" . -}}
-{{- and .Values.vaultInit.enabled (has $mode (list "hashicorp-dev" "hashicorp-persistent")) -}}
-{{- end -}}
-
-{{- define "wallet.vault.autoInit.enabled" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "enabled" .Values.vaultInit.autoInit.enabled $global | toString -}}
-{{- end -}}
-
-{{- define "wallet.vault.autoInit.keysSecretName" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "keysSecretName" .Values.vaultInit.autoInit.keysSecretName $global -}}
-{{- end -}}
-
-{{- define "wallet.vault.autoInit.auditPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "auditPath" .Values.vaultInit.autoInit.auditPath $global -}}
+{{- define "wallet.ingress.name" -}}
+{{- printf "%s-%v" (include "wallet.fullname" .context | trunc 58 | trimSuffix "-") .index -}}
 {{- end -}}
 
 {{/*
-Override local PSQL values with globals, if set. 
+Validates all values of this chart. Call once, e.g. at the top of configmap-runtime.yaml:
+{{- include "wallet.validate" . -}}
 */}}
-{{- define "wallet.postgresql.jdbcUrl" -}}
-{{- $global := .Values.global | default dict -}}
-{{- if dig "postgresql" "host" "" $global -}}
-{{- printf "jdbc:postgresql://%s:%v/%s"
-      (tpl (dig "postgresql" "host" "" $global) .)
-      (dig "postgresql" "port" 5432 $global)
-      .Values.postgresql.auth.database -}}
-{{- else -}}
-{{- tpl .Values.postgresql.jdbcUrl . -}}
+{{- define "wallet.validate" -}}
+{{- include "wallet.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) -}}
+{{- include "wallet.validatePostgres" . -}}
+{{- /* check that every enabled ingress resolves to a host */ -}}
+{{- range $index, $ingress := .Values.wallet.ingresses -}}
+{{- if and $ingress.enabled (not (include "wallet.ingress.host" (dict "context" $ "item" $ingress))) -}}
+  {{- fail (printf "wallet.ingresses[%d] requires a host: set wallet.ingresses[%d].hostname or global.wallet.hostname" $index $index) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}

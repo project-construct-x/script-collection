@@ -100,7 +100,32 @@ helm install wallet . -f my-override-values.yaml
 | `fullnameOverride` | string | `"wallet"` | Overrides the chart fullname used for all resource names. |
 | `nameOverride` | string | `"wallet"` | Overrides the chart name used in labels. |
 | `imagePullSecrets` | list | `[]` | Pull secrets for private image registries. |
+| `customLabels` | object | `{}` | Add some custom labels. |
 | `customCaCerts` | object | `{}` | Custom CA certificates added to the Java truststore at startup. |
+
+### `global`
+
+Global values are shared with other charts when this chart is used as a dependency of an umbrella chart (e.g. together with the connector). All keys are optional. Unless stated otherwise, a global value takes precedence over its local counterpart.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `global.wallet.fullname` | string | `""` | Fullname of all wallet resources. Overrides `fullnameOverride`. |
+| `global.wallet.hostname` | string | `""` | Public hostname of the wallet (ingress host). Used if `wallet.ingresses[].hostname` is empty. |
+| `global.imagePullSecrets` | list | `[]` | Image pull secrets added to `imagePullSecrets` (lists are concatenated). |
+| `global.customCaCerts` | object | `{}` | Custom CA certificates merged with `customCaCerts`. A local entry with the same key wins. |
+| `global.ingress.className` | string | `""` | Ingress class name for all ingresses. Overrides `wallet.ingresses[].className`. |
+| `global.ingress.clusterIssuer` | string | `""` | cert-manager cluster issuer for all ingresses. Overrides `wallet.ingresses[].certManager.clusterIssuer`. |
+| `global.vault.url` | string | `""` | Vault address. Overrides `vault.hashicorp.url`. Rendered with `tpl`. |
+| `global.vault.token` | string | `""` | Vault token used at runtime. Overrides `vault.hashicorp.token`. Ignored with `autoInit`. |
+| `global.vault.secretPath` | string | `""` | KV-v2 secret path in the form `/v1/<mount>`. Overrides `vault.hashicorp.paths.secret`. The autoInit KV mount is derived from it. |
+| `global.vault.mode` | string | `""` | Vault mode: `hashicorp-dev` or `hashicorp-persistent`. Overrides `vaultInit.mode`. |
+| `global.vault.autoInit.enabled` | bool | — | Overrides `vaultInit.autoInit.enabled`. |
+| `global.vault.autoInit.keysSecretName` | string | `""` | Overrides `vaultInit.autoInit.keysSecretName`. Must be the same in all charts sharing one Vault. |
+| `global.vault.autoInit.auditPath` | string | `""` | Overrides `vaultInit.autoInit.auditPath`. |
+| `global.vaultInit.image.repository` | string | `""` | Overrides `vaultInit.image.repository`. |
+| `global.vaultInit.image.tag` | string | `""` | Overrides `vaultInit.image.tag`. |
+| `global.postgresql.host` | string | `""` | Host of a shared PostgreSQL. If set, the JDBC URL is always derived from host, port and `postgresql.auth.database`, and `postgresql.jdbcUrl` is ignored. Rendered with `tpl`. |
+| `global.postgresql.port` | int | — | Overrides `postgresql.port`. |
 
 ### `wallet`
 
@@ -116,7 +141,6 @@ helm install wallet . -f my-override-values.yaml
 | `wallet.debug.enabled` | bool | `false` | Enables the JDWP remote debug socket. Never use in production. |
 | `wallet.debug.port` | int | `1045` | JDWP listen port inside the container. |
 | `wallet.debug.suspendOnStart` | bool | `false` | If `true`, the JVM suspends until a debugger connects. |
-| `wallet.hostname` | string | `wallet.staging.construct-x.net` | Public hostname. Used in `did:web` URLs and ingress routing. |
 | `wallet.superuser.createSecret` | bool | `true` | Creates a Kubernetes Secret from the values below and mounts it via `envFrom`. Set to `false` and reference an external secret via `envSecretNames` instead. |
 | `wallet.superuser.id` | string | `admin` | Participant context ID of the super-user. |
 | `wallet.superuser.apiKey` | string | `YWRtaW4.adminKey` | API key for the super-user. Format: `base64(<id>).<random-suffix>`. **Change before production use.** |
@@ -207,7 +231,10 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `postgresql.jdbcUrl` | string | `jdbc:postgresql://wallet-postgresql:5432/wallet` | JDBC URL passed to the wallet. |
+| `postgresql.host` | string | `""` | PostgreSQL host used to derive the JDBC URL. Defaults to `<release>-postgresql` (bundled instance) if empty. Overridden by `global.postgresql.host`. |
+| `postgresql.port` | int | `5432` | PostgreSQL port used to derive the JDBC URL. Overridden by `global.postgresql.port`. |
+| `postgresql.jdbcUrl` | string | `""` | JDBC URL passed to the EDC runtime. Derived from host, port and database if empty. Ignored if `global.postgresql.host` is set. |
+| `postgresql.jdbcParams` | string | `""` | Optional query parameters appended to the derived JDBC URL as `?<params>` (e.g. `sslmode=require`). Ignored if `postgresql.jdbcUrl` is set. |
 | `postgresql.auth.database` | string | `wallet` | Database name created on first start. |
 | `postgresql.auth.username` | string | `user` | Database user the wallet connects as. |
 | `postgresql.auth.password` | string | `password` | Database password. **Change before production use.** |

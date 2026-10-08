@@ -26,10 +26,11 @@
 {{- $controlEdcEndpoints := .Values.controlplane.endpoints -}}
 {{- $namespace := .Release.Namespace -}}
 
-{{- range .Values.controlplane.ingresses -}}
+{{- range $index, $ingress := .Values.controlplane.ingresses }}
 {{- if and .enabled .endpoints -}}
-{{- $controlIngressName := printf "%s-controlplane-%s" $fullName .hostname -}}
-{{- $annotations := .annotations | default dict }}
+{{- $host := include "conxdc.ingress.host" (dict "context" $ "item" . "plane" "controlplane") }}
+{{- $controlIngressName := include "conxdc.ingress.name" (dict "context" $ "plane" "controlplane" "index" $index) }}
+{{- $annotations := include "conxdc.ingress.annotations" (dict "context" $ "item" . "host" $host) | fromYaml }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -52,7 +53,7 @@ metadata:
     {{- end }}
 spec:
   {{- if .className }}
-  ingressClassName: {{ .className }}
+  ingressClassName: {{ include "conxdc.ingress.className" (dict "context" $ "item" .) }}
   {{- end }}
   {{- if .hostname }}
   {{- if .tls.enabled }}

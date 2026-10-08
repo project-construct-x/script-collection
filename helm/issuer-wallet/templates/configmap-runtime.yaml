@@ -24,7 +24,12 @@
 {{- $iam := index .Values "wallet" "iam" | default dict -}}
 {{- $issuer := index .Values "wallet" "issuer" | default dict -}}
 {{- $statuslist := index $issuer "statuslist" | default dict -}}
-{{- $defaultStlCallback := printf "https://%s%s" (index .Values.wallet.ingresses 0).hostname .Values.wallet.endpoints.statuslist.path }}
+
+{{- $defaultStlCallback := "" }}
+{{- with include "issuer-wallet.publicHostname" . }}
+{{- $defaultStlCallback = printf "https://%s%s" . $.Values.wallet.endpoints.statuslist.path }}
+{{- end }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -36,7 +41,7 @@ data:
   #######
   # API #
   #######
-  EDC_HOSTNAME: {{ .Values.wallet.hostname | quote }}
+  EDC_HOSTNAME: {{ include "issuer-wallet.serviceHostname" . | quote }}
   WEB_HTTP_PORT: {{ .Values.wallet.endpoints.default.port | quote }}
   WEB_HTTP_PATH: {{ .Values.wallet.endpoints.default.path | quote }}
   WEB_HTTP_IDENTITY_PORT: {{ .Values.wallet.endpoints.identity.port | quote }}
@@ -60,7 +65,7 @@ data:
   EDC_IAM_KEY_ALGORITHM: {{ $iam.keyAlgorithm | default "RSA" | quote }}
   EDC_IAM_CREDENTIAL_RENEWAL_GRACEPERIOD: {{ $iam.renewalGraceperiod | default "172800" | quote }}
   EDC_ISSUER_ISSUANCE_SEND_RETRY_LIMIT: {{ $issuer.sendRetryLimit | default "0" | quote }}
-  EDC_STATUSLIST_CALLBACK_ADDRESS: {{ $statuslist.callbackAddress | default $defaultStlCallback | quote }} 
+  EDC_STATUSLIST_CALLBACK_ADDRESS: {{ $statuslist.callbackAddress | default $defaultStlCallback | required "wallet.issuer.statuslist.callbackAddress, wallet.ingresses[0].hostname or global.issuerWallet.hostname is required" | quote }}
 
   {{- if eq (include "issuer-wallet.usesVault" .) "true" }}
   #####################

@@ -24,10 +24,11 @@
 {{- $gitVersion := .Capabilities.KubeVersion.GitVersion -}}
 {{- $namespace := .Release.Namespace -}}
 
-{{- range .Values.wallet.ingresses -}}
-{{- if and .enabled .endpoints -}}
-{{- $controlIngressName := printf "%s-%s" $fullName .hostname -}}
-{{- $annotations := .annotations | default dict -}}
+{{- range $index, $ingress := .Values.wallet.ingresses }}
+{{- if .enabled }}
+{{- $host := include "wallet.ingress.host" (dict "context" $ "item" .) }}
+{{- $controlIngressName := include "wallet.ingress.name" (dict "context" $ "index" $index) }}
+{{- $annotations := include "wallet.ingress.annotations" (dict "context" $ "item" . "host" $host) | fromYaml }}
 
 {{- if semverCompare ">=1.19-0" $gitVersion }}
 apiVersion: networking.k8s.io/v1
@@ -61,7 +62,7 @@ metadata:
     {{- end }}
 spec:
   {{- if and .className (semverCompare ">=1.18-0" $gitVersion) }}
-  ingressClassName: {{ .className }}
+  ingressClassName: {{ include "wallet.ingress.className" (dict "context" $ "item" .) }}
   {{- end }}
   {{- if .hostname }}
   {{- if .tls.enabled }}

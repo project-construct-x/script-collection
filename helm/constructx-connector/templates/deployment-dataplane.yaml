@@ -22,7 +22,8 @@
 #  SPDX-License-Identifier: Apache-2.0
 #################################################################################
 
-{{- include "conxdc.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
+{{- $caCerts := include "conxdc.customCaCerts" . | fromYaml }}
+{{- include "conxdc.validate" . -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -49,22 +50,19 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.dataplane.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "conxdc.imagePullSecrets" (dict "context" $ "extra" .Values.dataplane.imagePullSecrets) | nindent 6 }}
       serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
       {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
       automountServiceAccountToken: true
       {{- end }}
       securityContext:
         {{- toYaml .Values.dataplane.podSecurityContext | nindent 8 }}
-      {{- if or .Values.dataplane.initContainers .Values.customCaCerts (eq (include "conxdc.vault.autoInit.enabled" .) "true") }}
+      {{- if or .Values.dataplane.initContainers $caCerts (eq (include "conxdc.vault.autoInit.enabled" .) "true") }}
       initContainers:
       {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
         # wait until the vault-init job created the shared scoped app-token secret
         - name: wait-for-app-token
-          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
+          image: {{ include "conxdc.vaultInit.image" . }}
           command: ["/bin/sh","-c"]
           args:
             - |
@@ -79,7 +77,7 @@ spec:
         {{- if .Values.dataplane.initContainers }}
         {{- toYaml .Values.dataplane.initContainers | nindent 8 }}
         {{- end }}
-        {{- if .Values.customCaCerts }}
+        {{- if $caCerts }}
         - name: custom-cacerts
           {{- if .Values.dataplane.image.repository }}
           image: "{{ .Values.dataplane.image.repository }}:{{ .Values.dataplane.image.tag | default .Chart.AppVersion }}"
@@ -181,6 +179,8 @@ spec:
                 name: {{ include "conxdc.fullname" . }}-dataplane
             - secretRef:
                 name: {{ include "conxdc.fullname" . }}-dataplane
+            - secretRef:
+                name: {{ include "conxdc.datasourceSecretName" . }}
           {{- range $value := .Values.dataplane.envSecretNames }}
             - secretRef:
                 name: {{ $value | quote }}
@@ -190,16 +190,16 @@ spec:
                 name: {{ $value | quote }}
           {{- end }}
           volumeMounts:
-          {{- if .Values.dataplane.volumeMounts }}
-            {{- toYaml .Values.dataplane.volumeMounts | nindent 12 }}
-          {{- end }}
+            {{- with .Values.dataplane.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             - name: "configuration"
               mountPath: "/app/opentelemetry.properties"
               subPath: "opentelemetry.properties"
             - name: log4j2-config
               mountPath: /app/log4j2.yaml
               subPath: log4j2.yaml
-          {{- if .Values.customCaCerts }}
+          {{- if $caCerts }}
             - name: custom-cacerts
               mountPath: /opt/java/openjdk/lib/security/cacerts
               subPath: cacerts
@@ -207,9 +207,9 @@ spec:
             - name: "tmp"
               mountPath: "/tmp"
       volumes:
-      {{- if .Values.dataplane.volumeMounts }}
-        {{- toYaml .Values.dataplane.volumes | nindent 8 }}
-      {{- end }}
+        {{- with .Values.dataplane.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         - name: "configuration"
           configMap:
             name: {{ include "conxdc.fullname" . }}-dataplane-otel
@@ -222,7 +222,7 @@ spec:
             items:
               - key: "log4j2.yaml"
                 path: "log4j2.yaml"
-      {{- if .Values.customCaCerts }}
+      {{- if $caCerts }}
         - name: custom-cacertificates
           configMap:
             name: {{ include "conxdc.fullname" . }}-custom-cacerts

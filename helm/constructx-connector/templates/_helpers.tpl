@@ -1,29 +1,14 @@
 {{/*
+Defines the key of this chart below global (global.<key>.*) for values that differ per chart.
+*/}}
+{{- define "conxdc.globalKey" -}}connector{{- end -}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "conxdc.name" -}}
-{{- default .Chart.Name .Values.nameOverride | replace "+" "_"  | trunc 63 | trimSuffix "-" -}}
+{{- default .Chart.Name .Values.nameOverride | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end }}
-
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name. Overrides local fullname values with globals, if set.
-*/}}
-{{- define "conxdc.fullname" -}}
-{{- $global := .Values.global | default dict -}}
-{{- $override := dig "conxdc" "fullname" .Values.fullnameOverride $global -}}
-{{- if $override -}}
-{{- tpl $override . | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- $name := default .Chart.Name .Values.nameOverride -}}
-{{- if contains $name .Release.Name -}}
-{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
 
 {{/*
 Create chart name and version as used by the chart label.
@@ -41,6 +26,9 @@ helm.sh/chart: {{ include "conxdc.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.customLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -119,9 +107,9 @@ Control DSP URL
 {{- with (index .Values.controlplane.ingresses 0) }}
 {{- if .enabled }}{{/* if ingress enabled */}}
 {{- if .tls.enabled }}{{/* if TLS enabled */}}
-{{- printf "https://%s" .hostname -}}
+{{- printf "https://%s" (include "conxdc.controlplane.publicHostname" $) -}}
 {{- else }}{{/* else when TLS not enabled */}}
-{{- printf "http://%s" .hostname -}}
+{{- printf "http://%s" (include "conxdc.controlplane.publicHostname" $) -}}
 {{- end }}{{/* end if tls */}}
 {{- else }}{{/* else when ingress not enabled */}}
 {{- printf "http://%s-controlplane:%v" ( include "conxdc.fullname" $ ) $.Values.controlplane.endpoints.protocol.port -}}
@@ -158,12 +146,12 @@ Data Public URL
 {{- if .Values.dataplane.url.public }}{{/* if public api url has been specified explicitly */}}
 {{- .Values.dataplane.url.public }}
 {{- else }}{{/* else when public api url has not been specified explicitly */}}
-{{- with (index  .Values.dataplane.ingresses 0) }}
+{{- with (index .Values.dataplane.ingresses 0) }}
 {{- if .enabled }}{{/* if ingress enabled */}}
 {{- if .tls.enabled }}{{/* if TLS enabled */}}
-{{- printf "https://%s%s" .hostname $.Values.dataplane.endpoints.public.path -}}
+{{- printf "https://%s%s" (include "conxdc.dataplane.publicHostname" $) $.Values.dataplane.endpoints.public.path -}}
 {{- else }}{{/* else when TLS not enabled */}}
-{{- printf "http://%s%s" .hostname $.Values.dataplane.endpoints.public.path -}}
+{{- printf "http://%s%s" (include "conxdc.dataplane.publicHostname" $) $.Values.dataplane.endpoints.public.path -}}
 {{- end }}{{/* end if tls */}}
 {{- else }}{{/* else when ingress not enabled */}}
 {{- printf "http://%s-dataplane:%v%s" (include "conxdc.fullname" $ ) $.Values.dataplane.endpoints.public.port $.Values.dataplane.endpoints.public.path -}}
@@ -183,86 +171,118 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
-{{/* 
+{{/*
 Defines mapping for RSA Key Aliases
 */}}
-{{- define "conxdc.signerAlias"   -}}{{ .Values.vaultInit.rsa.privateAlias | default "priv" }}{{- end -}}
-{{- define "conxdc.verifierAlias" -}}{{ .Values.vaultInit.rsa.publicAlias | default "pub"  }}{{- end -}}
+{{- define "conxdc.signerAlias" -}}{{ .Values.vaultInit.rsa.privateAlias | default "priv" }}{{- end -}}
+{{- define "conxdc.verifierAlias" -}}{{ .Values.vaultInit.rsa.publicAlias | default "pub" }}{{- end -}}
 
-{{/* 
-Defines Vault Token Secret Name for autoInit
+{{/*
+Defines the DID of the participant (EDC_PARTICIPANT_ID, EDC_IAM_ISSUER_ID in controlplane and dataplane).
+global.participant.did -> iatp.id
 */}}
-{{- define "conxdc.appTokenSecretName" -}}
-{{- printf "%s-vault-deployment-token" (include "conxdc.fullname" .) -}}
+{{- define "conxdc.participantDid" -}}
+{{- $global := .Values.global | default dict -}}
+{{- dig "participant" "did" (.Values.iatp.id | default "") $global | required "iatp.id or global.participant.did is required" -}}
 {{- end -}}
 
 {{/*
-Defines Vault KV-v2 secret path. Overrides with global, if set.
+Defines the STS client id. An explicit iatp.sts.oauth.client.id wins, otherwise the DID is used.
 */}}
-{{- define "conxdc.vault.secretPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "secretPath" .Values.vault.hashicorp.paths.secret $global | trimSuffix "/" -}}
+{{- define "conxdc.stsClientId" -}}
+{{- .Values.iatp.sts.oauth.client.id | default (include "conxdc.participantDid" .) -}}
 {{- end -}}
 
 {{/*
-Defines Vault KV-v2 mount name derived from the secret path: /v1/secret -> secret
+Defines the public hostname of the controlplane (ingress host, DSP callback address).
+controlplane.ingresses[0].hostname -> global.connector.controlplane.hostname
+A local value wins, so the defaults of ingresses[].hostname in values.yaml must stay empty.
+Not to be confused with the in-cluster hostname (EDC_HOSTNAME), see conxdc.serviceHostname.
 */}}
-{{- define "conxdc.vault.kvMount" -}}
-{{- include "conxdc.vault.secretPath" . | trimPrefix "/v1/" -}}
+{{- define "conxdc.controlplane.publicHostname" -}}
+{{- $global := .Values.global | default dict -}}
+{{- $local := "" -}}
+{{- with .Values.controlplane.ingresses }}{{ $local = (index . 0).hostname | default "" }}{{ end -}}
+{{- $local | default (dig (include "conxdc.globalKey" .) "controlplane" "hostname" "" $global) -}}
 {{- end -}}
 
 {{/*
-Override local Vault values with globals, if set.
+Defines the public hostname of the dataplane (ingress host, public API URL).
+dataplane.ingresses[0].hostname -> global.connector.dataplane.hostname
+A local value wins, so the defaults of ingresses[].hostname in values.yaml must stay empty.
+Not to be confused with the in-cluster hostname (EDC_HOSTNAME), see conxdc.serviceHostname.
 */}}
-{{- define "conxdc.vault.url" -}}
+{{- define "conxdc.dataplane.publicHostname" -}}
 {{- $global := .Values.global | default dict -}}
-{{- tpl (dig "vault" "url" .Values.vault.hashicorp.url $global) . -}}
-{{- end -}}
-
-{{- define "conxdc.vault.token" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "token" .Values.vault.hashicorp.token $global -}}
-{{- end -}}
-
-{{- define "conxdc.vault.mode" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "mode" .Values.vaultInit.mode $global -}}
-{{- end -}}
-
-{{/* 
-Defines if the vault-init job for hashicorp vault does run
-*/}}
-{{- define "conxdc.vaultInit.jobEnabled" -}}
-{{- $mode := include "conxdc.vault.mode" . -}}
-{{- and .Values.vaultInit.enabled (has $mode (list "hashicorp-dev" "hashicorp-persistent")) -}}
-{{- end -}}
-
-{{- define "conxdc.vault.autoInit.enabled" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "enabled" .Values.vaultInit.autoInit.enabled $global | toString -}}
-{{- end -}}
-
-{{- define "conxdc.vault.autoInit.keysSecretName" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "keysSecretName" .Values.vaultInit.autoInit.keysSecretName $global -}}
-{{- end -}}
-
-{{- define "conxdc.vault.autoInit.auditPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- dig "vault" "autoInit" "auditPath" .Values.vaultInit.autoInit.auditPath $global -}}
+{{- $local := "" -}}
+{{- with .Values.dataplane.ingresses }}{{ $local = (index . 0).hostname | default "" }}{{ end -}}
+{{- $local | default (dig (include "conxdc.globalKey" .) "dataplane" "hostname" "" $global) -}}
 {{- end -}}
 
 {{/*
-Override local PSQL values with globals, if set. 
+Defines the host of an ingress entry of the given plane.
+<plane>.ingresses[].hostname -> global.connector.<plane>.hostname
+A local value wins, so every entry can carry its own host. Entries without hostname use the global value.
+Usage inside range: {{ include "conxdc.ingress.host" (dict "context" $ "item" . "plane" "controlplane") }}
 */}}
-{{- define "conxdc.postgresql.jdbcUrl" -}}
-{{- $global := .Values.global | default dict -}}
-{{- if dig "postgresql" "host" "" $global -}}
-{{- printf "jdbc:postgresql://%s:%v/%s"
-      (tpl (dig "postgresql" "host" "" $global) .)
-      (dig "postgresql" "port" 5432 $global)
-      .Values.postgresql.auth.database -}}
-{{- else -}}
-{{- tpl .Values.postgresql.jdbcUrl . -}}
+{{- define "conxdc.ingress.host" -}}
+{{- $global := .context.Values.global | default dict -}}
+{{- .item.hostname | default (dig (include "conxdc.globalKey" .context) .plane "hostname" "" $global) -}}
+{{- end -}}
+
+{{/*
+Defines the name of an ingress resource of the given plane: <fullname>-<plane>-<index>, e.g. user-edc-controlplane-0.
+Independent of global values and ingresses[].hostname, so names stay stable and unique.
+Usage inside range: {{ include "conxdc.ingress.name" (dict "context" $ "plane" "controlplane" "index" $index) }}
+*/}}
+{{- define "conxdc.ingress.name" -}}
+{{- $base := printf "%s-%s" (include "conxdc.fullname" .context) .plane -}}
+{{- printf "%s-%v" ($base | trunc 58 | trimSuffix "-") .index -}}
+{{- end -}}
+
+{{/*
+Defines the in-cluster hostname of the given plane, used for EDC_HOSTNAME.
+It always equals the name of the plane's service (<fullname>-<plane>), therefore it is not configurable.
+EDC builds internal URLs from it, e.g. the control API URL used between controlplane and dataplane.
+Usage: {{ include "conxdc.serviceHostname" (dict "context" $ "plane" "controlplane") }}
+*/}}
+{{- define "conxdc.serviceHostname" -}}
+{{- printf "%s-%s" (include "conxdc.fullname" .context) .plane | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Defines the id used for the service self registration inside the DID document (TX_EDC_DID_SERVICE_SELF_REGISTRATION_ID).
+An explicit iatp.didService.selfRegistration.id wins, otherwise the DID is used.
+*/}}
+{{- define "conxdc.selfRegistrationId" -}}
+{{- .Values.iatp.didService.selfRegistration.id | default (include "conxdc.participantDid" .) -}}
+{{- end -}}
+
+{{/*
+Validates all values of this chart. Call once, e.g. at the top of configmap-controlplane.yaml:
+{{- include "conxdc.validate" . -}}
+*/}}
+{{- define "conxdc.validate" -}}
+{{- include "conxdc.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) -}}
+{{- include "conxdc.validatePostgres" . -}}
+{{- $_ := include "conxdc.participantDid" . -}}
+{{- /* check that the public hostnames are resolvable, they are required for DSP callback and public API */ -}}
+{{- if not (include "conxdc.controlplane.publicHostname" .) -}}
+  {{- fail "controlplane.ingresses[0].hostname or global.connector.controlplane.hostname is required (DSP callback address)" -}}
+{{- end -}}
+{{- if not (include "conxdc.dataplane.publicHostname" .) -}}
+  {{- fail "dataplane.ingresses[0].hostname or global.connector.dataplane.hostname is required (public API URL)" -}}
+{{- end -}}
+{{- /* check that every enabled ingress resolves to a host */ -}}
+{{- range $plane := list "controlplane" "dataplane" -}}
+{{- range $index, $ingress := (index $.Values $plane).ingresses -}}
+{{- if and $ingress.enabled (not (include "conxdc.ingress.host" (dict "context" $ "item" $ingress "plane" $plane))) -}}
+  {{- fail (printf "%s.ingresses[%d] requires a host: set %s.ingresses[%d].hostname or global.connector.%s.hostname" $plane $index $plane $index $plane) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- /* check that at least one trusted issuer is configured */ -}}
+{{- if not .Values.iatp.trustedIssuers -}}
+  {{- fail "iatp.trustedIssuers requires at least one trusted issuer" -}}
 {{- end -}}
 {{- end -}}

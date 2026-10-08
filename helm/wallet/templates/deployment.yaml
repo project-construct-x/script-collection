@@ -21,7 +21,8 @@
 #
 
 {{- $fullName := include "wallet.fullname" . -}}
-{{- include "wallet.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent")) }}
+{{- $caCerts := include "wallet.customCaCerts" . | fromYaml }}
+{{- include "wallet.validate" . -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -48,18 +49,15 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "wallet.imagePullSecrets" (dict "context" $) | nindent 6 }}
       serviceAccountName: {{ include "wallet.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.wallet.podSecurityContext | nindent 8 }}
-    {{- if or .Values.wallet.initContainers .Values.customCaCerts (eq (include "wallet.vault.autoInit.enabled" .) "true") }}
+    {{- if or .Values.wallet.initContainers $caCerts (eq (include "wallet.vault.autoInit.enabled" .) "true") }}
       initContainers:
       {{- if eq (include "wallet.vault.autoInit.enabled" .) "true" }}
         - name: wait-for-app-token
-          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
+          image: {{ include "wallet.vaultInit.image" . }}
           command: ["/bin/sh","-c"]
           args:
             - |
@@ -74,7 +72,7 @@ spec:
       {{- if .Values.wallet.initContainers }}
         {{- toYaml .Values.wallet.initContainers | nindent 8 }}
       {{- end }}
-      {{- if .Values.customCaCerts }}
+      {{- if $caCerts }}
         - name: custom-cacerts
           image: {{ include "wallet.image" . | quote }}
           imagePullPolicy: {{ .Values.wallet.image.pullPolicy }}
@@ -168,7 +166,7 @@ spec:
             - configMapRef:
                 name: {{ $fullName }}-datasource-config
             - secretRef:
-                name: {{ $fullName }}-datasource-credentials
+                name: {{ include "wallet.datasourceSecretName" . }}
           {{- if .Values.wallet.superuser.createSecret }}
             - secretRef:
                 name: {{ $fullName }}-superuser-credentials
@@ -183,8 +181,10 @@ spec:
                 name: {{ printf "%s-%s" $fullName $value | quote }}
           {{- end }}
           {{- end }}
-          volumeMounts:
-          {{- if .Values.customCaCerts }}
+            {{- with .Values.wallet.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if $caCerts }}
             - name: custom-cacerts
               mountPath: /opt/java/openjdk/lib/security/cacerts
               subPath: cacerts
@@ -192,9 +192,10 @@ spec:
             - name: "tmp"
               mountPath: "/tmp"
       volumes:
-        - name: "configuration"
-          configMap:
-      {{- if .Values.customCaCerts }}
+        {{- with .Values.wallet.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if $caCerts }}
         - name: custom-cacertificates
           configMap:
             name: {{ include "wallet.fullname" . }}-custom-cacerts

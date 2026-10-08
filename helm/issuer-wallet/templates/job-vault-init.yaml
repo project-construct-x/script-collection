@@ -47,7 +47,7 @@ spec:
 {{- end }}
       containers:
         - name: vault-init
-          image: {{ .Values.vaultInit.image.repository }}:{{ .Values.vaultInit.image.tag }}
+          image: {{ include "issuer-wallet.vaultInit.image" . }}
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -68,14 +68,10 @@ spec:
             - name: AES_ENABLED
               value: {{ .Values.vaultInit.aes.enabled | quote }}
             - name: AES_ALIAS
-              value: {{ .Values.vaultInit.aes.alias | default "" | quote }}
+              value: {{ include "issuer-wallet.aesKeyAlias" . | quote }}
             # --- RSA ---
             - name: RSA_ENABLED
-              value: {{ .Values.vaultInit.rsa.enabled | quote }}
-            - name: RSA_PRIV_ALIAS
-              value: {{ .Values.vaultInit.rsa.privateAlias | default "" | quote }}
-            - name: RSA_PUB_ALIAS
-              value: {{ .Values.vaultInit.rsa.publicAlias | default "" | quote }}
+              value: "false"
           {{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
             # --- Auto-Init (hashicorp-persistent mode only) ---
             - name: AUTO_INIT

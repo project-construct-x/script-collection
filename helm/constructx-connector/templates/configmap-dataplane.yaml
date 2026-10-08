@@ -48,7 +48,7 @@ data:
   ###########
   # General #
   ###########
-  EDC_HOSTNAME: {{ .Values.dataplane.hostname | quote }}
+  EDC_HOSTNAME: {{ include "conxdc.serviceHostname" (dict "context" $ "plane" "dataplane") | quote }}
   EDC_SQL_SCHEMA_AUTOCREATE: {{ .Values.dataplane.schema.autocreate | quote }}
   EDC_RUNTIME_ID: {{ printf "%s-dataplane" (include "conxdc.fullname" .) | quote }}
   {{- if .Values.log4j2.enableJsonLogs }}
@@ -58,9 +58,8 @@ data:
   ####################
   # ID CONFIGURATION #
   ####################
-  EDC_PARTICIPANT_ID: {{ .Values.participant.id | required ".Values.participant.id is required" | quote }}
-  EDC_IAM_ISSUER_ID: {{ .Values.iatp.id | required ".Values.iatp.id is required" | quote }}
-  EDC_IAM_TRUSTED-ISSUER_EXAMPLE_ID: {{ .Values.iatp.trustedIssuerId | required ".Values.iatp.trustedIssuerId is required" | quote }}
+  EDC_PARTICIPANT_ID: {{ include "conxdc.participantDid" . | quote }}
+  EDC_IAM_ISSUER_ID: {{ include "conxdc.participantDid" . | quote }}
 
   ##########################
   # CONTROL / SELECTOR URL #
@@ -93,7 +92,7 @@ data:
   # IATP / STS / DIV CONFIG #
   ###########################
   EDC_IAM_STS_OAUTH_TOKEN_URL: {{ .Values.iatp.sts.oauth.token_url | required ".Values.iatp.sts.oauth.token_url is required" | quote }}
-  EDC_IAM_STS_OAUTH_CLIENT_ID: {{ .Values.iatp.sts.oauth.client.id | required ".Values.iatp.sts.oauth.client.id is required" | quote }}
+  EDC_IAM_STS_OAUTH_CLIENT_ID: {{ include "conxdc.stsClientId" . | quote }}
   EDC_IAM_STS_OAUTH_CLIENT_SECRET_ALIAS: {{ .Values.iatp.sts.oauth.client.secret_alias | required ".Values.iatp.sts.oauth.client.secret_alias is required" | quote }}
   {{- if .Values.iatp.sts.div.url }}
   TX_EDC_IAM_STS_DIV_URL: {{ .Values.iatp.sts.div.url | quote }}
@@ -122,5 +121,5 @@ data:
   ###############
   # RSA ALIASES #
   ###############
-  EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS: {{ .Values.vaultInit.rsa.privateAlias | required ".Values.vaultInit.rsa.privateAlias is required" | quote }}
-  EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS: {{ .Values.vaultInit.rsa.publicAlias | required ".Values.vaultInit.rsa.publicAlias is required" | quote }}
+  EDC_TRANSFER_PROXY_TOKEN_SIGNER_PRIVATEKEY_ALIAS: {{ include "conxdc.signerAlias" . | quote }}
+  EDC_TRANSFER_PROXY_TOKEN_VERIFIER_PUBLICKEY_ALIAS: {{ include "conxdc.verifierAlias" . | quote }}
