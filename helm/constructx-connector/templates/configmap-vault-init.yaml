@@ -1,0 +1,256 @@
+#################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
+#
+#  See the NOTICE file(s) distributed with this work for additional
+#  information regarding copyright ownership.
+#
+#  This program and the accompanying materials are made available under the
+#  terms of the Apache License, Version 2.0 which is available at
+#  https://www.apache.org/licenses/LICENSE-2.0.
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.
+#
+#  SPDX-License-Identifier: Apache-2.0
+#################################################################################
+
+# this configmap contains the initialization script to generate and store aes and rsa keys into the vault.
+
+{{- if eq (include "conxdc.vaultInit.jobEnabled" .) "true" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "conxdc.fullname" . }}-vault-init
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "conxdc.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  init.sh: |
+    #!/usr/bin/env sh
+    set -eu
+
+    VAULT="${VAULT_ADDR:?VAULT_ADDR is required}"
+    TOKEN="${VAULT_TOKEN:-}"
+    FORCE="${FORCE_REGENERATE:-false}"
+    SECRETS="${VAULT_SECRET_PATH:-/v1/secret}"
+    HEALTH="${VAULT_HEALTH_PATH:-/v1/sys/health}"
+
+    AES_ENABLED="${AES_ENABLED:-false}"
+    AES_ALIAS="${AES_ALIAS:-}"
+    RSA_ENABLED="${RSA_ENABLED:-false}"
+    RSA_PRIV_ALIAS="${RSA_PRIV_ALIAS:-}"
+    RSA_PUB_ALIAS="${RSA_PUB_ALIAS:-}"
+
+    AUTO_INIT="${AUTO_INIT:-false}"
+
+    log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >&2; }
+
+    # Install required tools
+    if ! command -v openssl >/dev/null 2>&1 \
+        || ! command -v curl >/dev/null 2>&1 \
+        || ! command -v jq   >/dev/null 2>&1; then
+        log "Installing curl, jq, openssl..."
+        apk add --no-cache curl jq openssl >/dev/null
+    fi
+
+    # AUTO_INIT=true
+
+    # initializes Vault in persistent mode
+    if [ "${AUTO_INIT:-false}" = "true" ]; then
+      # Kubernetes API
+      K8S="https://kubernetes.default.svc"
+      # Service-Account Directory
+      SA=/var/run/secrets/kubernetes.io/serviceaccount
+      KTOKEN="$(cat $SA/token)"
+      KCACERT="$SA/ca.crt"
+      NS="${POD_NAMESPACE:?POD_NAMESPACE is required}"
+      KEYS_SECRET_NAME="${KEYS_SECRET_NAME:?KEYS_SECRET_NAME is required}"
+      APP_TOKEN_SECRET_NAME="${APP_TOKEN_SECRET_NAME:?APP_TOKEN_SECRET_NAME is required}"
+      KVM="${KV_MOUNT:-secret}"
+      AUDIT_PATH="${AUDIT_PATH:-}"
+      POLICY_NAME="${APP_POLICY_NAME:-deployment}"
+
+      # wait until Vault answers with http-code within 60s
+      log "Waiting for Vault at $VAULT/v1/sys/seal-status..."
+      i=0
+      until code=$(curl -sS -o /dev/null -w '%{http_code}' "$VAULT/v1/sys/seal-status" 2>/dev/null) \
+            && [ -n "$code" ] && [ "$code" != "000" ]; do
+        i=$((i+1))
+        [ "$i" -gt 60 ] && { log "Vault not reachable."; exit 1; }
+        sleep 3
+      done
+
+      # get Kubernetes secret of given secret name
+      k8s_get_secret() {
+        local secretname="$1"
+        curl -sS --cacert "$KCACERT" -H "Authorization: Bearer $KTOKEN" \
+          "$K8S/api/v1/namespaces/$NS/secrets/$secretname"; }
+
+      # creates (POST) or updates (PUT) Kubernetes secret of given secret name
+      # secret contains vault unseal key and root token
+      k8s_put_secret() {
+        local secretname="$1"
+        local unseal_key_b64="$2"
+        local root_token_b64="$3"
+        body=$(jq -n --arg n "$secretname" --arg u "$unseal_key_b64" --arg r "$root_token_b64" \
+          '{apiVersion:"v1",kind:"Secret",metadata:{name:$n},data:{"unseal-key":$u,"root-token":$r}}')
+        if k8s_get_secret "$secretname" | jq -e '.metadata.name?' >/dev/null 2>&1; then
+          printf '%s' "$body" | curl -sS --cacert "$KCACERT" -H "Authorization: Bearer $KTOKEN" \
+            -H "Content-Type: application/json" -X PUT --data-binary @- \
+            "$K8S/api/v1/namespaces/$NS/secrets/$secretname" >/dev/null
+        else
+          printf '%s' "$body" | curl -sS --cacert "$KCACERT" -H "Authorization: Bearer $KTOKEN" \
+            -H "Content-Type: application/json" -X POST --data-binary @- \
+            "$K8S/api/v1/namespaces/$NS/secrets" >/dev/null
+        fi; }
+
+      # initializes vault if uninitialized
+      # calls /v1/sys/init endpoint of vault to initialize and receive unseal key and root token
+      if [ "$(curl -sS "$VAULT/v1/sys/seal-status" | jq -r '.initialized')" = "false" ]; then
+        log "Initializing Vault (1 key share)..."
+        resp=$(curl -sS -H "Content-Type: application/json" -X PUT \
+          -d '{"secret_shares":1,"secret_threshold":1}' "$VAULT/v1/sys/init")
+        UNSEAL=$(printf '%s' "$resp" | jq -r '.keys_base64[0]')
+        ROOT=$(printf '%s' "$resp" | jq -r '.root_token')
+        [ -n "$UNSEAL" ] && [ "$UNSEAL" != "null" ] || { log "init failed"; exit 1; }
+        k8s_put_secret "$KEYS_SECRET_NAME" \
+          "$(printf '%s' "$UNSEAL" | base64 | tr -d '\n')" \
+          "$(printf '%s' "$ROOT"   | base64 | tr -d '\n')"
+        log "Vault initialized; keys stored in $KEYS_SECRET_NAME."
+      else
+        log "Vault already initialized — reading keys."
+      fi
+
+      # reads key and token from Kubernetes secret
+      sjson=$(k8s_get_secret "$KEYS_SECRET_NAME")
+      UNSEAL=$(printf '%s' "$sjson" | jq -r '.data["unseal-key"]' | base64 -d)
+      ROOT=$(printf '%s'   "$sjson" | jq -r '.data["root-token"]' | base64 -d)
+      [ -n "$ROOT" ] && [ "$ROOT" != "null" ] || { log "keys secret invalid"; exit 1; }
+
+      # unseals Vault if sealed
+      if [ "$(curl -sS "$VAULT/v1/sys/seal-status" | jq -r '.sealed')" = "true" ]; then
+        log "Unsealing Vault..."
+        curl -sS -H "Content-Type: application/json" -X PUT \
+          -d "$(jq -n --arg k "$UNSEAL" '{key:$k}')" "$VAULT/v1/sys/unseal" >/dev/null
+        if [ "$(curl -sS "$VAULT/v1/sys/seal-status" | jq -r '.sealed')" != "false" ]; then
+          log "ERROR: Vault is still sealed - the stored unseal key does not match this Vault. The PVC and the keys secret may belong to different Vault instances."
+          exit 1
+        fi
+        log "Vault unsealed."
+      fi
+
+      # set root token to global token variable
+      TOKEN="$ROOT"
+
+      # enables v2 of KV secrets engine if missing
+      if ! curl -sS -H "X-Vault-Token: $TOKEN" "$VAULT/v1/sys/mounts" \
+          | jq -e --arg m "$KVM/" '.[$m] // .data[$m]' >/dev/null 2>&1; then
+        log "Enabling KV-v2 at $KVM/..."
+        curl -sS -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -X POST \
+          -d '{"type":"kv","options":{"version":"2"}}' "$VAULT/v1/sys/mounts/$KVM" >/dev/null
+      fi
+
+      # enable files audit device if configured and missing
+      if [ -n "${AUDIT_PATH:-}" ]; then
+        if ! curl -sS -H "X-Vault-Token: $TOKEN" "$VAULT/v1/sys/audit" \
+            | jq -e '."file/" // .data."file/"' >/dev/null 2>&1; then
+          log "Enabling file audit device at $AUDIT_PATH..."
+          curl -sS -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -X PUT \
+            -d "$(jq -n --arg p "$AUDIT_PATH" '{type:"file",options:{file_path:$p}}')" \
+            "$VAULT/v1/sys/audit/file" >/dev/null
+        fi
+      fi
+      log "Auto-init phase complete."
+
+      # creates policy with least access for deployment/app vault token
+      policy_hcl=$(printf '%s' '
+        path "'"$KVM"'/data/*"     { capabilities = ["create","read","update"] }
+        path "'"$KVM"'/metadata/*" { capabilities = ["read","list"] }
+        path "sys/health"                 { capabilities = ["read"] }')
+      curl -sS -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" -X PUT \
+        -d "$(jq -n --arg p "$policy_hcl" '{policy:$p}')" \
+        "$VAULT/v1/sys/policies/acl/$POLICY_NAME" >/dev/null
+
+      # creates least access token and stores it as Kubernetes secret if not present
+      if ! k8s_get_secret "$APP_TOKEN_SECRET_NAME" | jq -e '.metadata.name?' >/dev/null 2>&1; then
+        log "Creating scoped app token..."
+        app_token=$(curl -sS -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" \
+          -X POST -d "$(jq -n --arg pol "$POLICY_NAME" '{policies:[$pol],period:"768h",no_parent:true}')" \
+          "$VAULT/v1/auth/token/create" | jq -r '.auth.client_token')
+        [ -n "$app_token" ] && [ "$app_token" != "null" ] || { log "app token creation failed"; exit 1; }
+        body=$(jq -n --arg n "$APP_TOKEN_SECRET_NAME" --arg t "$(printf '%s' "$app_token" | base64 | tr -d '\n')" \
+          '{apiVersion:"v1",kind:"Secret",metadata:{name:$n},data:{"EDC_VAULT_HASHICORP_TOKEN":$t}}')
+        printf '%s' "$body" | curl -sS --cacert "$KCACERT" -H "Authorization: Bearer $KTOKEN" \
+          -H "Content-Type: application/json" -X POST --data-binary @- \
+          "$K8S/api/v1/namespaces/$NS/secrets" >/dev/null
+        log "Scoped app token stored in $APP_TOKEN_SECRET_NAME."
+      else
+        log "App token secret already present — keeping it."
+      fi
+
+    fi
+
+    # wait for vault to be healty within 60s
+    i=0
+    until curl -fsS --connect-timeout 2 --max-time 5 "$VAULT$HEALTH" >/dev/null 2>&1; do
+      i=$((i+1))
+      [ "$i" -gt 60 ] && { log "Vault not ready."; exit 1; }
+      sleep 3
+    done
+
+    # secret seeding
+
+    # checks if secret exists
+    secret_exists() { 
+      local vault_secretname="$1"
+      [ "$(curl -sS -o /dev/null -w '%{http_code}' \
+      -H "X-Vault-Token: $TOKEN" "$VAULT$SECRETS/data/$vault_secretname")" = "200" ]; }
+
+    # stores generated secret-http-body into the Vault
+    put_secret() {
+      local vault_secretname="$1"
+      local secret_http_body="$2"
+      printf '%s' "$secret_http_body" | curl -sS -o /dev/null -w '%{http_code}' \
+      -H "X-Vault-Token: $TOKEN" -H "Content-Type: application/json" \
+      -X POST --data-binary @- "$VAULT$SECRETS/data/$vault_secretname" | grep -qE '20[04]' \
+      || { log "store '$vault_secretname' failed"; exit 1; }; }
+
+    # generates AES key from alias and stores it into the Vault
+    gen_aes() {
+      local aes_key_alias="$1"
+      if [ "$FORCE" != "true" ] && secret_exists "$aes_key_alias"; then 
+        log "AES '$aes_key_alias' present — skip."
+        return
+      fi
+      key=$(openssl rand -base64 32 | tr -d '\n')
+      put_secret "$1" "$(jq -n --arg k "$key" '{data:{content:$k}}')"; log "AES stored: $aes_key_alias"; }
+
+    # generates RSA keypair from aliases and stores them into the Vault
+    gen_rsa() {
+      local rsa_priv_key_alias="$1"
+      local rsa_pub_key_alias="$2"
+      if [ "$FORCE" != "true" ] && secret_exists "$rsa_priv_key_alias" && secret_exists "$rsa_pub_key_alias"; then
+        log "RSA '$rsa_priv_key_alias'/'$rsa_pub_key_alias' present — skip."
+        return
+      fi
+      umask 077
+      dir=$(mktemp -d)
+      openssl genrsa -out "$dir/k.pem" 2048 2>/dev/null
+      openssl pkcs8 -topk8 -nocrypt -in "$dir/k.pem" -out "$dir/priv.pem"
+      openssl rsa -in "$dir/k.pem" -pubout -out "$dir/pub.pem" 2>/dev/null
+      put_secret "$rsa_priv_key_alias" "$(jq -n --rawfile c "$dir/priv.pem" '{data:{content:$c}}')"
+      put_secret "$rsa_pub_key_alias" "$(jq -n --rawfile c "$dir/pub.pem"  '{data:{content:$c}}')"
+      rm -rf "$dir"; log "RSA stored: $rsa_priv_key_alias / $rsa_pub_key_alias"; }
+
+    [ "${AES_ENABLED:-false}" = "true" ] && gen_aes "$AES_ALIAS"
+    [ "${RSA_ENABLED:-false}" = "true" ] && gen_rsa "$RSA_PRIV_ALIAS" "$RSA_PUB_ALIAS"
+    log "Vault initialization complete."
+{{- end }}

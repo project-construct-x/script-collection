@@ -1,0 +1,103 @@
+#################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
+#
+#  See the NOTICE file(s) distributed with this work for additional
+#  information regarding copyright ownership.
+#
+#  This program and the accompanying materials are made available under the
+#  terms of the Apache License, Version 2.0 which is available at
+#  https://www.apache.org/licenses/LICENSE-2.0.
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.
+#
+#  SPDX-License-Identifier: Apache-2.0
+#################################################################################
+
+{{- if eq (include "wallet.vaultInit.jobEnabled" .) "true" -}}
+{{- $fullName := include "wallet.fullname" . }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-vault-init
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "wallet.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        {{- include "wallet.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "wallet.serviceAccountName" . }}
+{{- if eq (include "wallet.vault.autoInit.enabled" .) "true" }}
+      # Ensure that SA Token is mounted
+      automountServiceAccountToken: true
+{{- end }}
+      containers:
+        - name: vault-init
+          image: {{ include "wallet.vaultInit.image" . }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              tr -d '\r' < /scripts/init.sh > /tmp/init.sh
+              exec sh /tmp/init.sh
+          env:
+            - name: VAULT_ADDR
+              value: {{ include "wallet.vault.url" . | quote }}
+            - name: VAULT_TOKEN
+              value: {{ include "wallet.vault.token" . | quote }}
+            - name: VAULT_SECRET_PATH
+              value: {{ include "wallet.vault.secretPath" . | quote }}
+            - name: VAULT_HEALTH_PATH
+              value: {{ .Values.vault.hashicorp.paths.health | quote }}
+            - name: FORCE_REGENERATE
+              value: {{ .Values.vaultInit.forceRegenerate | quote }}
+            # --- AES ---
+            - name: AES_ENABLED
+              value: {{ .Values.vaultInit.aes.enabled | quote }}
+            - name: AES_ALIAS
+              value: {{ include "wallet.aesKeyAlias" . | quote }}
+            # --- RSA ---
+            - name: RSA_ENABLED
+              value: "false"
+          {{- if eq (include "wallet.vault.autoInit.enabled" .) "true" }}
+            # --- Auto-Init (hashicorp-persistent mode only) ---
+            - name: AUTO_INIT
+              value: "true"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KEYS_SECRET_NAME
+              value: {{ include "wallet.vault.autoInit.keysSecretName" . | quote }}
+            - name: KV_MOUNT
+              value: {{ include "wallet.vault.kvMount" . | quote }}
+            - name: AUDIT_PATH
+              value: {{ include "wallet.vault.autoInit.auditPath" . | quote }}
+            - name: APP_TOKEN_SECRET_NAME
+              value: {{ include "wallet.appTokenSecretName" . | quote }}
+            - name: APP_POLICY_NAME
+              value: "deployment"
+          {{- end }}
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: {{ $fullName }}-vault-init
+            defaultMode: 0555
+{{- end }}
