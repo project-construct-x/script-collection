@@ -21,8 +21,8 @@
 #
 
 {{- $fullName := include "wallet.fullname" . -}}
-{{- $caCerts := include "wallet.customCaCerts" . | fromYaml }}
-{{- include "wallet.validate" . -}}
+{{- $caCerts := include "wallet.customCaCerts" . | fromYaml -}}
+{{- include "wallet.validate" . }}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -181,6 +181,7 @@ spec:
                 name: {{ printf "%s-%s" $fullName $value | quote }}
           {{- end }}
           {{- end }}
+          volumeMounts:
             {{- with .Values.wallet.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

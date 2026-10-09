@@ -21,8 +21,8 @@
 #
 
 {{- $fullName := include "issuer-wallet.fullname" . -}}
-{{- $caCerts := include "issuer-wallet.customCaCerts" . | fromYaml }}
-{{- include "issuer-wallet.validate" . -}}
+{{- $caCerts := include "issuer-wallet.customCaCerts" . | fromYaml -}}
+{{- include "issuer-wallet.validate" . }}
 
 apiVersion: apps/v1
 kind: Deployment
