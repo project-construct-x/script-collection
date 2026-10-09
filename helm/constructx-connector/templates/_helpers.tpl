@@ -101,21 +101,17 @@ Create the name of the service account to use
 Control DSP URL
 */}}
 {{- define "conxdc.controlplane.url.protocol" -}}
+{{- $host := include "conxdc.controlplane.publicHostname" . -}}
+{{- $ingress := index (.Values.controlplane.ingresses | default list) 0 | default dict -}}
 {{- if .Values.controlplane.url.protocol }}{{/* if dsp api url has been specified explicitly */}}
 {{- .Values.controlplane.url.protocol }}
-{{- else }}{{/* else when dsp api url has not been specified explicitly */}}
-{{- with (index .Values.controlplane.ingresses 0) }}
-{{- if .enabled }}{{/* if ingress enabled */}}
-{{- if .tls.enabled }}{{/* if TLS enabled */}}
-{{- printf "https://%s" (include "conxdc.controlplane.publicHostname" $) -}}
-{{- else }}{{/* else when TLS not enabled */}}
-{{- printf "http://%s" (include "conxdc.controlplane.publicHostname" $) -}}
-{{- end }}{{/* end if tls */}}
-{{- else }}{{/* else when ingress not enabled */}}
-{{- printf "http://%s-controlplane:%v" ( include "conxdc.fullname" $ ) $.Values.controlplane.endpoints.protocol.port -}}
-{{- end }}{{/* end if ingress */}}
-{{- end }}{{/* end with ingress */}}
-{{- end }}{{/* end if .Values.controlplane.url.protocol */}}
+{{- else if $host }}{{/* public hostname known (chart ingress or external ingress) */}}
+{{- /* TLS is assumed unless the chart ingress is enabled without TLS */ -}}
+{{- $tls := or (not $ingress.enabled) (($ingress.tls).enabled | default false) -}}
+{{- printf "%s://%s" (ternary "https" "http" $tls) $host -}}
+{{- else }}{{/* no public hostname: cluster-wide service DNS name */}}
+{{- printf "http://%s.%s.svc:%v" (include "conxdc.serviceHostname" (dict "context" $ "plane" "controlplane")) $.Release.Namespace $.Values.controlplane.endpoints.protocol.port -}}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -143,21 +139,17 @@ Data Plane Control URL
 Data Public URL
 */}}
 {{- define "conxdc.dataplane.url.public" -}}
+{{- $host := include "conxdc.dataplane.publicHostname" . -}}
+{{- $ingress := index (.Values.dataplane.ingresses | default list) 0 | default dict -}}
+{{- $path := .Values.dataplane.endpoints.public.path -}}
 {{- if .Values.dataplane.url.public }}{{/* if public api url has been specified explicitly */}}
 {{- .Values.dataplane.url.public }}
-{{- else }}{{/* else when public api url has not been specified explicitly */}}
-{{- with (index .Values.dataplane.ingresses 0) }}
-{{- if .enabled }}{{/* if ingress enabled */}}
-{{- if .tls.enabled }}{{/* if TLS enabled */}}
-{{- printf "https://%s%s" (include "conxdc.dataplane.publicHostname" $) $.Values.dataplane.endpoints.public.path -}}
-{{- else }}{{/* else when TLS not enabled */}}
-{{- printf "http://%s%s" (include "conxdc.dataplane.publicHostname" $) $.Values.dataplane.endpoints.public.path -}}
-{{- end }}{{/* end if tls */}}
-{{- else }}{{/* else when ingress not enabled */}}
-{{- printf "http://%s-dataplane:%v%s" (include "conxdc.fullname" $ ) $.Values.dataplane.endpoints.public.port $.Values.dataplane.endpoints.public.path -}}
-{{- end }}{{/* end if ingress */}}
-{{- end }}{{/* end with ingress */}}
-{{- end }}{{/* end if .Values.dataplane.url.public */}}
+{{- else if $host }}{{/* public hostname known (chart ingress or external ingress) */}}
+{{- $tls := or (not $ingress.enabled) (($ingress.tls).enabled | default false) -}}
+{{- printf "%s://%s%s" (ternary "https" "http" $tls) $host $path -}}
+{{- else }}{{/* no public hostname: cluster-wide service DNS name */}}
+{{- printf "http://%s.%s.svc:%v%s" (include "conxdc.serviceHostname" (dict "context" $ "plane" "dataplane")) $.Release.Namespace $.Values.dataplane.endpoints.public.port $path -}}
+{{- end }}
 {{- end }}
 
 {{/*
