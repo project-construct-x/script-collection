@@ -23,7 +23,7 @@ from exceptions import ConnectorError
 from http_client import ensure_success, request_json
 from onboarding import initialize_participant
 from payloads import EDC_VOCAB
-from publish import publish_asset, unpublish_asset
+from publish import list_published_assets, publish_asset, unpublish_asset
 from request import (
     negotiate_endpoint_reference,
     pull_data,
@@ -107,6 +107,9 @@ class ConnectorClient:
 
     def unpublish_asset(self, asset_id: str) -> dict[str, Any]:
         return unpublish_asset(self.config, asset_id)
+
+    def list_published_assets(self) -> dict[str, list[str]]:
+        return list_published_assets(self.config)
 
     def fetch_catalog(self, peer_did: str, peer_dsp: str, limit: int = 0) -> Catalog:
         return request_catalog(self.config, peer_did=peer_did, peer_dsp=peer_dsp, limit=limit)

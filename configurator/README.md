@@ -151,9 +151,7 @@ PARTICIPANT_DID=did:web:connector.example.org:user
 
 `PARTICIPANT_DID` is used as the consumer identity in contract requests.
 `CONNECTOR_DOMAIN` and `PARTICIPANT_CONTEXT_ID` are not required for operating
-an existing connector. For the CLI's own-catalog selection and verification
-when unpublishing, also set `PARTICIPANT_DSP_CALLBACK_ADDRESS` to the
-connector's DSP base URL.
+an existing connector.
 
 Verify the connection:
 
@@ -229,8 +227,9 @@ Unpublish an asset:
 edc unpublish --assetid <asset-id>
 ```
 
-Omit `--assetid` to select an asset from your own catalog. Both modes ask for
-confirmation; `-y` skips it.
+Omit `--assetid` to select an asset from the exact-ID contract definitions
+listed through the Management API. Both modes ask for confirmation; `-y`
+skips it. No request to the connector's own DSP catalog is needed.
 
 Unpublishing removes contract definitions that select this asset by its exact
 ID, as created by `publish`. The asset, its policies, source data, and existing

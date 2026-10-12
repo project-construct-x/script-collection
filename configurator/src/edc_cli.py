@@ -19,7 +19,6 @@ from pydantic import ValidationError
 
 from client import ConnectorClient
 from config import ConnectorConfig
-from util import dsp_endpoint_for_protocol
 
 ENV_FILE = ".env"
 LOCAL_FILE_SERVER_CONTAINER = "local-webserver"
@@ -170,39 +169,32 @@ def command_unpublish(args: argparse.Namespace) -> None:
     client = ConnectorClient(config)
     asset_id = args.assetid
     if not asset_id:
-        catalog = client.fetch_catalog(
-            peer_did=config.participant_did,
-            peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
-        )
-        print(catalog)
-        if not catalog:
-            print("No published assets.")
+        asset_ids = list(client.list_published_assets())
+        if not asset_ids:
+            print("No assets with exact-ID contract definitions.")
             return
+        for index, published_asset_id in enumerate(asset_ids):
+            print(f"[{index}] Asset ID: {published_asset_id}")
         while True:
-            choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
+            choice = input(f"Select an asset (0-{len(asset_ids) - 1}): ")
             try:
                 index = int(choice)
             except ValueError:
                 print("Please enter a valid integer.")
                 continue
-            if 0 <= index < len(catalog):
-                asset_id = catalog.select_offer(index=index).asset_id
+            if 0 <= index < len(asset_ids):
+                asset_id = asset_ids[index]
                 break
-            print(f"Index must be between 0 and {len(catalog) - 1}.")
+            print(f"Index must be between 0 and {len(asset_ids) - 1}.")
 
     if not args.y:
         answer = input(f"Unpublish asset {asset_id!r}? Existing contracts and source data remain. [yes/No] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Aborted.")
             return
-    client.unpublish_asset(asset_id)
-    catalog = client.fetch_catalog(
-        peer_did=config.participant_did,
-        peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
-    )
-    if any(offer.asset_id == asset_id for offer in catalog):
-        raise RuntimeError("Asset is still offered by another contract definition; shared definitions were not changed")
+    result = client.unpublish_asset(asset_id)
     print(f"Unpublished asset {asset_id}")
+    print("Removed contract definitions:", ", ".join(result["contractDefinitionIds"]))
 
 
 def command_send_file(args: argparse.Namespace) -> None:
@@ -280,7 +272,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish_p.set_defaults(func=command_publish)
 
     unpublish_p = sub.add_parser("unpublish", help="Remove an asset's catalog offer without deleting its data")
-    unpublish_p.add_argument("--assetid", help="Asset ID; omit for interactive selection from your own catalog")
+    unpublish_p.add_argument("--assetid", help="Asset ID; omit for interactive selection from contract definitions")
     unpublish_p.add_argument("-y", action="store_true", help="Skip confirmation")
     unpublish_p.set_defaults(func=command_unpublish)
 
