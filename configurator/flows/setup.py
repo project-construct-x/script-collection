@@ -31,10 +31,17 @@ SETTINGS = (
     EnvSetting(
         name="CONNECTOR_DOMAIN",
         prompt="Public connector domain",
+        required=False,
+    ),
+    EnvSetting(
+        name="CONNECTOR_MANAGEMENT_API",
+        prompt="Connector Management API URL (leave empty to derive from domain)",
+        required=False,
     ),
     EnvSetting(
         name="ACME_EMAIL",
         prompt="Email address used for ACME certificates",
+        required=False,
     ),
     EnvSetting(
         name="PARTICIPANT_DID",
@@ -43,30 +50,22 @@ SETTINGS = (
     EnvSetting(
         name="PARTICIPANT_CONTEXT_ID",
         prompt="Participant context ID",
+        required=False,
     ),
     EnvSetting(
         name="PARTICIPANT_SECRET_ALIAS",
         prompt="Participant secret alias",
+        required=False,
     ),
     EnvSetting(
         name="TRUSTED_ISSUER_DID",
         prompt="Trusted issuer DID",
-    ),
-    EnvSetting(
-        name="ISSUER_CONTEXT",
-        prompt="Trusted issuer context",
-    ),
-    EnvSetting(
-        name="TRUSTED_ISSUER_CREDENTIAL_SERVICE_URL",
-        prompt="Trusted issuer credential service URL",
-    ),
-    EnvSetting(
-        name="TRUSTED_ISSUER_ISSUANCE_SERVICE_URL",
-        prompt="Trusted issuer issuance service URL",
+        required=False,
     ),
     EnvSetting(
         name="MEMBERSHIP_CREDENTIAL_DEFINITION_ID",
         prompt="Membership credential definition ID",
+        required=False,
     ),
     EnvSetting(
         name="CONNECTOR_MANAGEMENT_API_KEY",

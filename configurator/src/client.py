@@ -20,7 +20,9 @@ from catalog import Catalog, Offer
 from config import ConnectorConfig
 from credentials import list_credentials, request_membership_credential
 from exceptions import ConnectorError
+from http_client import ensure_success, request_json
 from onboarding import initialize_participant
+from payloads import EDC_VOCAB
 from publish import publish_asset, unpublish_asset
 from request import (
     negotiate_endpoint_reference,
@@ -31,7 +33,6 @@ from request import (
     send_json_via_endpoint,
     wait_for_endpoint_data_reference, )
 from state import load_state
-from util import dsp_endpoint_for_protocol
 
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -202,12 +203,12 @@ class ConnectorClient:
         return True
 
     def check_management_api(self) -> bool:
-        """Verify the connector through a catalog request to its own DSP endpoint."""
-        catalog = self.fetch_catalog(peer_did=self.config.participant_did,
-                                     peer_dsp=dsp_endpoint_for_protocol(
-                                         base_dsp=self.config.participant_dsp_callback_address,
-                                         protocol=self.config.protocol), limit=1)
-        if catalog:
-            return True
-        else:
-            return False
+        """Verify access to the connector's Management API."""
+        status, body = request_json(
+            "POST",
+            f"{self.config.connector_management_api}/v3/assets/request",
+            {"@context": {"@vocab": EDC_VOCAB}, "@type": "QuerySpec", "limit": 1},
+            {"x-api-key": self.config.connector_management_api_key},
+        )
+        ensure_success("check management API", status, body, allowed=(200,))
+        return True

@@ -125,8 +125,9 @@ The following settings should be changed to random secrets
 | `CONNECTOR_MANAGEMENT_API_KEY` | <random>         | Control Plane API Key           |
 
 Relative paths are resolved against the current working directory. Connector
-settings are validated when the configuration is loaded. Wallet, Vault, and
-trusted issuer settings are validated only when local onboarding is started.
+Management API access and the participant DID are validated when the
+configuration is loaded. The domain, wallet context, Wallet, Vault, and trusted
+issuer settings are required only when local onboarding is started.
 
 Run `edc config` to create or update the common connector settings
 interactively. Local deployment secrets still need to be set directly in
@@ -136,22 +137,23 @@ interactively. Local deployment secrets still need to be set directly in
 
 An existing connector must already be deployed, onboarded, and equipped with a
 valid participant identity and membership credential. The library only needs
-access to its Management API and public DSP endpoint; it does not need direct
-access to the connector wallet or Vault.
+access to its Management API and the connector's participant DID; it does not
+need direct access to the connector wallet or Vault. This is the same for a
+connector running locally or on another host.
 
 Configure these values in `.env`:
 
 ```text
-CONNECTOR_DOMAIN=connector.example.org
 CONNECTOR_MANAGEMENT_API=https://connector.example.org/management
 CONNECTOR_MANAGEMENT_API_KEY=<management-api-key>
 PARTICIPANT_DID=did:web:connector.example.org:user
-PARTICIPANT_CONTEXT_ID=user
-PARTICIPANT_DSP_CALLBACK_ADDRESS=https://connector.example.org/dsp
 ```
 
-`CONNECTOR_MANAGEMENT_API` and `PARTICIPANT_DSP_CALLBACK_ADDRESS` are generated
-from `CONNECTOR_DOMAIN` when they are not set explicitly.
+`PARTICIPANT_DID` is used as the consumer identity in contract requests.
+`CONNECTOR_DOMAIN` and `PARTICIPANT_CONTEXT_ID` are not required for operating
+an existing connector. For the CLI's own-catalog selection and verification
+when unpublishing, also set `PARTICIPANT_DSP_CALLBACK_ADDRESS` to the
+connector's DSP base URL.
 
 Verify the connection:
 

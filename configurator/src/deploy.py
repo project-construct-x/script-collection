@@ -50,6 +50,7 @@ def _wait_for_wallet(attempts: int = 60, interval_seconds: float = 2) -> None:
 
 
 def setup() -> None:
+    config.validate_local_onboarding()
     start_infrastructure()
     print("Waiting...", "infrastructure startup")
     _wait_for_wallet()
