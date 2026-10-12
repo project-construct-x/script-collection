@@ -11,8 +11,7 @@ onboarding, asset publication, catalog access, contract negotiation, transfers,
 and authorized HTTP requests through Endpoint Data References (EDRs).
 
 It packages a local Docker-based deployment of the essential components of an EDC.
-The client can also operate an existing, fully configured connector without
-accessing its wallet, Vault, or Docker host.
+Existing, fully configured connectors are operated through their Management API.
 
 ## Features
 
@@ -51,15 +50,14 @@ Use `pip install -e ".[dev]"` when developing or running the tests.
 
 ### Runtime Images
 
-`edc start` uses the image references in `docker/.docker.env`. The Python
-library does not build Docker images. The bundled configuration was tested
-with Construct-X Wallet `0.18.0-1`, HashiMock, and the Control Plane and Data
-Plane built from `constructx-edc` commit
+`edc start` uses the image references in `docker/.docker.env`. The bundled
+configuration was tested with Construct-X Wallet `0.18.0-1`, HashiMock, and
+the Control Plane and Data Plane built from `constructx-edc` commit
 `021daa740a74c4456a4a02782b88bbce0203247d`.
 
 **Note:** The Control Plane and Data Plane images currently need to be built
 locally before starting the connector. The versioned image names in
-`docker/.docker.env` refer to local images, not published registry images.
+`docker/.docker.env` refer to locally built images.
 
 To build the matching planes on a host with Docker and the required JDK:
 
@@ -75,8 +73,7 @@ docker tag con-x-dataplane-postgresql-hashicorp-vault:latest con-x-dataplane-pos
 ```
 
 The images must be available on the Docker host running the connector. Access
-to the Wallet and HashiMock images may require a GHCR login. Operating an
-existing connector through its Management API does not require local images.
+to the Wallet and HashiMock images may require a GHCR login.
 
 ### Configuration
 Create the runtime environment file from the shipped example
@@ -95,9 +92,6 @@ Important settings include:
 | `PARTICIPANT_DID`                       | did:web:<connector-domain>:<participant-id>                         | DID of the operator participant                                                  |
 | `PARTICIPANT_CONTEXT_ID`                | <participant-id>                                                    | Participant context in the wallet                                                |
 | `TRUSTED_ISSUER_DID`                    | did:web:<issuer-host>:<issuer-id>                                   | DID of the membership credential issuer.<br/>Provided by the dataspace operator. |
-| `ISSUER_CONTEXT`                        | con-x-issuer                                                        | Prodided by the dataspace operator                                               |
-| `TRUSTED_ISSUER_CREDENTIAL_SERVICE_URL` | https://<issuer-host>/api/credentials/v1/participants/<issuer-id>   | Provided by the dataspace operator.                                              |
-| `TRUSTED_ISSUER_ISSUANCE_SERVICE_URL`   | https://<issuer-host>/api/issuance/v1beta/participants/<issuer-id> | Provided by the dataspace operator.                                              |
 
 The public paths can be overwritten by uncommenting the respective lines in .env.
 If not set explicitly, those values are generated using `CONNECTOR_DOMAIN` as a base URL.
@@ -111,8 +105,7 @@ If not set explicitly, those values are generated using `CONNECTOR_DOMAIN` as a 
 | `CONNECTOR_MANAGEMENT_API`           | https://<connector-domain>/management                                         | Control Plane Management API, auto-generated if not set            |
 
 For peer catalog and contract requests, use the versioned DSP endpoint
-`https://<peer-domain>/dsp/2025-1`. The configured `/dsp` callback base shown by
-`edc status` is not the complete peer endpoint.
+`https://<peer-domain>/dsp/2025-1`.
 
 The following settings should be changed to random secrets
 
@@ -125,7 +118,7 @@ The following settings should be changed to random secrets
 | `CONNECTOR_MANAGEMENT_API_KEY` | <random>         | Control Plane API Key           |
 
 Relative paths are resolved against the current working directory. Connector
-Management API access and the participant DID are validated when the
+Management API settings and the participant DID are validated when the
 configuration is loaded. The domain, wallet context, Wallet, Vault, and trusted
 issuer settings are required only when local onboarding is started.
 
@@ -136,9 +129,8 @@ interactively. Local deployment secrets still need to be set directly in
 ### Operate an Existing Connector
 
 An existing connector must already be deployed, onboarded, and equipped with a
-valid participant identity and membership credential. The library only needs
-access to its Management API and the connector's participant DID; it does not
-need direct access to the connector wallet or Vault. This is the same for a
+valid participant identity and membership credential. Configure its Management
+API access and participant DID as shown below. This is the same for a
 connector running locally or on another host.
 
 Configure these values in `.env`:
@@ -150,8 +142,6 @@ PARTICIPANT_DID=did:web:connector.example.org:user
 ```
 
 `PARTICIPANT_DID` is used as the consumer identity in contract requests.
-`CONNECTOR_DOMAIN` and `PARTICIPANT_CONTEXT_ID` are not required for operating
-an existing connector.
 
 Verify the connection:
 
@@ -227,9 +217,8 @@ Unpublish an asset:
 edc unpublish --assetid <asset-id>
 ```
 
-Omit `--assetid` to select an asset from the exact-ID contract definitions
-listed through the Management API. Both modes ask for confirmation; `-y`
-skips it. No request to the connector's own DSP catalog is needed.
+Omit `--assetid` for interactive asset selection. Confirm the selection when
+prompted, or use `-y` for non-interactive confirmation.
 
 Unpublishing removes contract definitions that select this asset by its exact
 ID, as created by `publish`. The asset, its policies, source data, and existing
@@ -331,8 +320,7 @@ on HTTP `409`; changed data addresses are not updated automatically.
 client.unpublish_asset("demo-asset")
 ```
 
-This uses the configured Management API and does not require wallet or Vault
-access. The returned dictionary contains the asset ID and the removed contract
+The returned dictionary contains the asset ID and the removed contract
 definition IDs. Republishing the same asset ID recreates its offer.
 
 ### Request an Asset
