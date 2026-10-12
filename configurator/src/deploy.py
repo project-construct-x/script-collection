@@ -14,11 +14,10 @@ import subprocess
 import time
 from pathlib import Path
 
-from client import ConnectorClient
 from config import ConnectorConfig
 from exceptions import ConnectorError
 from http_client import request_json
-from identity import local_credentials, wait_for_membership_credential
+from onboarding import onboard_connector
 
 INFRASTRUCTURE_SERVICES = ("traefik", "postgres", "edc-vault", "vault-init", "edc-wallet", "local-webserver")
 CONNECTOR_SERVICES = ("controlplane", "dataplane")
@@ -51,31 +50,11 @@ def _wait_for_wallet(attempts: int = 60, interval_seconds: float = 2) -> None:
 
 
 def setup() -> None:
-    client = ConnectorClient(config)
     start_infrastructure()
     print("Waiting...", "infrastructure startup")
     _wait_for_wallet()
-    onboarding = client.bootstrap_participant()
+    onboarding = onboard_connector(config)
     print("Onboarding", onboarding)
-
-    credentials = local_credentials(config)
-    if not credentials:
-        print("Obtaining membership credentials...")
-        client.request_membership_credential()
-        credentials = wait_for_membership_credential(config)
-
-    print(
-        "Wallet credentials",
-        [
-            {
-                "issuerId": credential.get("issuerId"),
-                "holderId": credential.get("holderId"),
-                "credentialObjectId": (credential.get("metadata") or {}).get("credentialObjectId"),
-                "rawVcPresent": bool((credential.get("verifiableCredential") or {}).get("rawVc")),
-            }
-            for credential in credentials
-        ],
-    )
 
     start_connector()
 

@@ -11,31 +11,12 @@
 
 from __future__ import annotations
 
-import json
-import time
 from typing import Any
 from urllib import parse
 
 from config import ConnectorConfig
+from credentials import list_credentials
 from http_client import ensure_success, request_json, require_field
-
-def local_credentials(config) -> list[dict[str, Any]]:
-    state = json.loads(config.state_path.read_text())
-    url = f"{config.wallet_identity_api}/v1beta/participants/{config.participant_context_id}/credentials"
-    status, body = request_json("GET", url, headers={"x-api-key": state["apiKey"]})  # this should be private!
-    if status != 200:
-        raise RuntimeError(f"Wallet credential query failed with HTTP {status}: {body}")
-    return body if isinstance(body, list) else []
-
-
-def wait_for_membership_credential(config, attempts: int = 12) -> list[dict[str, Any]]:
-    for _ in range(attempts):
-        credentials = local_credentials(config)
-        if credentials:
-            return credentials
-        time.sleep(5)
-    raise RuntimeError("Membership Credential Could not be retrieved!")
-
 
 def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) -> dict[str, str]:
     api_key = str(state.get("apiKey") or "").strip()
@@ -43,7 +24,7 @@ def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) 
     if api_key and client_secret:
         try:
             # Test access the identity service using obtained secrets
-            local_credentials(config)
+            list_credentials(config, api_key)
             return {"apiKey": api_key, "clientSecret": client_secret}
         except RuntimeError:
             print("Could not access wallet resources. Re-initializing...")
