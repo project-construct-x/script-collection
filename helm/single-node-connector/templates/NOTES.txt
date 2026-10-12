@@ -1,0 +1,39 @@
+{{- include "single-node-connector.validate" . -}}
+{{- $global := .Values.global -}}
+{{- $name := .Release.Name -}}
+{{- $namespace := .Release.Namespace -}}
+
+================================================================================
+  Construct-X Single Node Connector "{{ $name }}" — installation complete
+================================================================================
+
+  Chart version       : {{ .Chart.Version }}
+  Connector version   : {{ .Chart.AppVersion }}
+  Namespace           : {{ $namespace }}
+  Release             : {{ $name }}
+  Secret storage mode : {{ $global.vault.mode }}
+
+================================================================================
+  Shared infrastructure (provided by constructx-connector)
+================================================================================
+
+  Vault      : {{ tpl $global.vault.url . }}
+  PostgreSQL : {{ tpl $global.postgresql.host . }}:{{ $global.postgresql.port | default 5432 }}
+{{- if and (eq $global.vault.mode "hashicorp-persistent") $global.vault.autoInit.enabled }}
+
+  Vault is initialised and unsealed by the vault-init jobs.
+  Unseal key + root token: secret/{{ $global.vault.autoInit.keysSecretName }} (non-production only)
+{{- end }}
+
+================================================================================
+  Bundled Applications
+================================================================================
+
+  Connector       : {{ $global.connector.fullname }}-controlplane / {{ $global.connector.fullname }}-dataplane
+  Wallet          : {{ $global.wallet.fullname }}
+  Participant DID : {{ $global.participant.did }}
+
+  Endpoints, credentials and warnings of each component are listed in the
+  subchart notes. Install/upgrade with --render-subchart-notes to make them available.
+    helm get notes {{ $name }} -n {{ $namespace }}
+  to show them again, if rendered.
