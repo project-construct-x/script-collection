@@ -149,7 +149,7 @@ def test_onboard_requests_and_waits_for_membership_credential(monkeypatch, tmp_p
     )
     monkeypatch.setattr(
         "onboarding.wait_for_membership_credential",
-        lambda selected_config, attempts=12: (
+        lambda selected_config, key: (
                 calls.append("wait")
                 or {
                     "issuerId": selected_config.trusted_issuer_did,

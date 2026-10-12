@@ -97,9 +97,10 @@ def _is_membership_credential(
         issuer_did: str,
         credential_definition_id: str,
 ) -> bool:
-    issuer = str(credential.get("issuerId") or credential.get("issuer") or "")
     metadata = credential.get("metadata")
     object_id = str(metadata.get("credentialObjectId") or "") if isinstance(metadata, dict) else ""
-    serialized = str(credential)
-    matches_type = object_id == credential_definition_id or "MembershipCredential" in serialized
-    return (not issuer or issuer == issuer_did) and matches_type
+    return (
+        credential.get("issuerId") == issuer_did
+        and object_id == credential_definition_id
+        and credential.get("state") in (500, "ISSUED")
+    )
