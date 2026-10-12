@@ -1,0 +1,9 @@
+dependencies:
+- name: constructx-connector
+  repository: file://../constructx-connector
+  version: 0.2.0
+- name: wallet
+  repository: file://../wallet
+  version: 0.4.0
+digest: sha256:e7e5d76bcbb317ab84b468309f5635ab29a7d4d90f671187e9f0f20e946ad0cd
+generated: "2026-10-12T09:38:22.947643639+02:00"
