@@ -109,9 +109,7 @@ class ConnectorConfig(BaseSettings):
         # Checking default values
         placeholders = {
             "CONNECTOR_MANAGEMENT_API": self.connector_management_api,
-            "CONNECTOR_DOMAIN": self.connector_domain,
             "PARTICIPANT_DID": self.participant_did,
-            "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
             "CONNECTOR_MANAGEMENT_API_KEY": self.connector_management_api_key,
         }
         invalid = [

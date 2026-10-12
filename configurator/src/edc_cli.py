@@ -100,8 +100,8 @@ def command_start(args: argparse.Namespace) -> None:
         print("No environment file found. Run edc config first.")
         return
 
-    from flows.simple_connector_flow import run_start
-    run_start()
+    from deploy import setup
+    setup()
     print("Startup complete.")
 
 
