@@ -22,5 +22,5 @@ if __name__ == "__main__":
     setup()
     run_publish("test-json", f"https://{config.connector_domain}/test.json")
     run_request_asset(peer_did=f"{config.participant_did}",
-                      peer_dsp=f"{config.participant_dsp_callback_address}",
+                      peer_dsp=config.dsp_endpoint,
                       asset_index=0)

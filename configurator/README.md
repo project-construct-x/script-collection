@@ -48,6 +48,11 @@ python -m pip install -e .
 
 Use `pip install -e ".[dev]"` when developing or running the tests.
 
+To build a source archive and a wheel, run:
+```sh
+python -m build
+```
+
 ### Runtime Images
 
 `edc start` uses the image references in `docker/.docker.env`. The bundled
