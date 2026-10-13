@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from catalog import Catalog, Offer
 from client import ConnectorClient
 from config import ConnectorConfig
+from exceptions import CatalogError
 
 ENV_FILE = ".env"
 LOCAL_FILE_SERVER_CONTAINER = "local-webserver"
@@ -52,6 +53,19 @@ def resolve_content_type(content_type: str) -> str:
     return CONTENT_TYPE_ALIASES.get(content_type.lower(), content_type)
 
 
+def prompt_index(count: int) -> int:
+    while True:
+        choice = input(f"Select an entry (0-{count - 1}): ")
+        try:
+            index = int(choice)
+        except ValueError:
+            print("Please enter a valid integer.")
+            continue
+        if 0 <= index < count:
+            return index
+        print(f"Index must be between 0 and {count - 1}.")
+
+
 def select_file(file_path: str | None) -> Path:
     if file_path:
         selected_file = Path(file_path)
@@ -74,33 +88,15 @@ def select_file(file_path: str | None) -> Path:
     for index, path in enumerate(files):
         print(f"[{index}] {path.name}")
 
-    while True:
-        choice = input(f"Select a file (0-{len(files) - 1}): ")
-        try:
-            index = int(choice)
-        except ValueError:
-            print("Please enter a valid integer.")
-            continue
-        if 0 <= index < len(files):
-            return files[index]
-        print(f"Index must be between 0 and {len(files) - 1}.")
+    return files[prompt_index(len(files))]
 
 
-def select_offer_interactive(catalog: Catalog, asset_id: str | None) -> Offer:
+def choose_offer(catalog: Catalog, asset_id: str | None) -> Offer:
     if asset_id:
         return catalog.select_offer(asset_id=asset_id)
     if len(catalog) == 0:
-        raise RuntimeError("Peer catalog is empty")
-    while True:
-        choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
-        try:
-            index = int(choice)
-        except ValueError:
-            print("Please enter a valid integer.")
-            continue
-        if 0 <= index < len(catalog):
-            return catalog.select_offer(index=index)
-        print(f"Index must be between 0 and {len(catalog) - 1}.")
+        raise CatalogError("Peer catalog is empty")
+    return catalog.select_offer(index=prompt_index(len(catalog)))
 
 
 def command_start(args: argparse.Namespace) -> None:
@@ -154,7 +150,7 @@ def command_request(args: argparse.Namespace) -> None:
     print("Requesting catalog...")
     catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
     print(catalog)
-    offer = select_offer_interactive(catalog, args.assetid)
+    offer = choose_offer(catalog, args.assetid)
     print(offer)
     print("\nRequesting asset...")
     result = client.request_http_asset(peer_did=args.did, peer_dsp=args.endpoint, offer=offer)
@@ -184,17 +180,7 @@ def command_unpublish(args: argparse.Namespace) -> None:
             return
         for index, published_asset_id in enumerate(asset_ids):
             print(f"[{index}] Asset ID: {published_asset_id}")
-        while True:
-            choice = input(f"Select an asset (0-{len(asset_ids) - 1}): ")
-            try:
-                index = int(choice)
-            except ValueError:
-                print("Please enter a valid integer.")
-                continue
-            if 0 <= index < len(asset_ids):
-                asset_id = asset_ids[index]
-                break
-            print(f"Index must be between 0 and {len(asset_ids) - 1}.")
+        asset_id = asset_ids[prompt_index(len(asset_ids))]
 
     if not args.y:
         answer = input(f"Unpublish asset {asset_id!r}? Existing contracts and source data remain. [yes/No] ")
@@ -213,7 +199,7 @@ def command_send_file(args: argparse.Namespace) -> None:
     catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
     print(catalog)
 
-    offer = select_offer_interactive(catalog, args.assetid)
+    offer = choose_offer(catalog, args.assetid)
 
     endpoint = client.negotiate_endpoint_reference(
         peer_did=args.did,
