@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -229,6 +230,12 @@ def write_atomically(path: Path, content: str) -> None:
         with os.fdopen(file_descriptor, "w", encoding="utf-8") as file:
             file.write(content)
 
+        if path.exists():
+            metadata = path.stat()
+            if os.name == "posix":
+                os.chown(temporary_path, -1, metadata.st_gid)
+            temporary_path.chmod(stat.S_IMODE(metadata.st_mode))
+
         temporary_path.replace(path)
     except Exception:
         temporary_path.unlink(missing_ok=True)
@@ -253,6 +260,7 @@ def ensure_env_file(
         )
 
     shutil.copyfile(example_file, env_file)
+    env_file.chmod(0o660)
     return True
 
 def print_current_settings(values: dict[str, str]) -> None:

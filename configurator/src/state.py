@@ -42,9 +42,14 @@ def load_state(config: ConnectorConfig) -> dict[str, Any]:
 
 
 def save_state(config: ConnectorConfig, state: dict[str, Any]) -> None:
-    config.state_path.parent.mkdir(parents=True, exist_ok=True)
+    directory = config.state_path.parent
+    if not directory.exists():
+        directory.mkdir(parents=True, mode=0o770)
+        directory.chmod(0o2770)
+    if not config.state_path.exists():
+        config.state_path.touch(mode=0o660)
+        config.state_path.chmod(0o660)
     config.state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    config.state_path.chmod(0o660)
 
 
 def remember_public_values(config: ConnectorConfig, state: dict[str, Any]) -> None:
