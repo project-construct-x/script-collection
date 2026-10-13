@@ -29,11 +29,11 @@ def build_publish_ids(config: ConnectorConfig, asset_id: str | None = None) -> d
         }
 
     suffix = uuid4().hex[:8]
-    prefix = config.participant_context_id
+    prefix = f"{config.participant_context_id}-" if config.participant_context_id else ""
     return {
-        "assetId": f"{prefix}-asset-{suffix}",
-        "policyId": f"{prefix}-policy-{suffix}",
-        "contractDefinitionId": f"{prefix}-contract-{suffix}",
+        "assetId": f"{prefix}asset-{suffix}",
+        "policyId": f"{prefix}policy-{suffix}",
+        "contractDefinitionId": f"{prefix}contract-{suffix}",
     }
 
 
