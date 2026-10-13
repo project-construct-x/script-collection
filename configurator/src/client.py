@@ -50,7 +50,7 @@ class ConnectorClient:
             config = ConnectorConfig()
         self.config = config
 
-    def status(self):
+    def status(self) -> bool:
 
         print("ConnectorClient version 0.1.0")
         print(f"Participant DID    : {self.config.participant_did}")
@@ -63,10 +63,11 @@ class ConnectorClient:
         try:
             self.check_management_api()
             print(f"{GREEN}OK{RESET}")
-        except ConnectorError:
+        except ConnectorError as exc:
             print(f"{RED}FAILED{RESET}")
-            # print(f"  Reason: {exc}")
-            print("  Management API is unreachable or not authorized!")
+            print(f"  Reason: {exc}")
+            return False
+        return True
 
 
     def bootstrap_participant(self) -> dict[str, str]:

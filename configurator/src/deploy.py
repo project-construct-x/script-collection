@@ -70,6 +70,8 @@ def start_connector() -> None:
 
 def stop(remove_state: bool = False) -> None:
     _stop_services(config.connector_stack_dir, remove_state=remove_state)
+    if remove_state:
+        config.state_path.unlink(missing_ok=True)
 
 
 def _start_services(compose_dir: str | Path, services: tuple[str, ...]) -> None:
