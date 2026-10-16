@@ -16,20 +16,16 @@ from urllib import parse
 
 from config import ConnectorConfig
 from credentials import list_credentials
+from exceptions import ConnectorError
 from http_client import ensure_success, request_json, require_field
 
 def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) -> dict[str, str]:
     api_key = str(state.get("apiKey") or "").strip()
     client_secret = str(state.get("clientSecret") or "").strip()
     if api_key and client_secret:
-        try:
-            # Test access the identity service using obtained secrets
-            list_credentials(config, api_key)
-            return {"apiKey": api_key, "clientSecret": client_secret}
-        except RuntimeError:
-            print("Could not access wallet resources. Re-initializing...")
+        list_credentials(config, api_key)
+        return {"apiKey": api_key, "clientSecret": client_secret}
 
-    # We found no api key or could not access the resources it refers to. Re-initialize wallet identity.
     payload = {
         "scopes": [],
         "serviceEndpoints": [
@@ -59,6 +55,11 @@ def create_or_reuse_participant(config: ConnectorConfig, state: dict[str, Any]) 
         payload,
         {"x-api-key": config.wallet_superuser_key},
     )
+    if status == 409:
+        raise ConnectorError(
+            f"Participant {config.participant_did} already exists in the wallet. "
+            f"Restore the matching local state file at {config.state_path}."
+        )
     ensure_success(f"create participant {config.participant_did}", status, body, allowed=(200, 201))
     return {
         "apiKey": require_field(body, "apiKey", "participant response"),
