@@ -21,7 +21,7 @@ Existing, fully configured connectors are operated through their Management API.
 - Unpublish assets without deleting their source data;
 - Retrieve catalogs and select offers;
 - Negotiate contracts;
-- Execute pull and `HttpData-PUSH` transfers;
+- Execute pull transfers and authorized HTTP POST requests;
 
 Trusted issuer administration is intentionally excluded. Holder registration,
 attestations, and credential definitions remain the responsibility of the
@@ -279,7 +279,7 @@ edc send-file \
 
 The mapped JSON response is saved as `downloads/delivery-note.json`. Omit
 `--file` to select a file from `uploads/` interactively. Omit `--assetid` to
-select a compatible service from the provider catalog.
+select an offer from the provider catalog.
 
 #### Shutdown
 
@@ -289,11 +289,12 @@ Stop the connector stack:
 edc stop
 ```
 
-> **Warning:** `edc stop --remove` deletes the local connector state (`.state/participant.json`) an all databases, as well as the vault. The connector must be onboarded again before it can participate in data exchange.
+> **Warning:** `edc stop --remove` deletes the local connector state (`.state/participant.json`) and all databases, as well as the vault. The connector must be onboarded again before it can participate in data exchange.
 
 ## Python Library Usage
 
-All operations are also available separately as part of the ConnectorClient in `src/client.py`.
+Use `ConnectorClient` in `src/client.py` for asset publication, catalog queries,
+and data exchange. Local deployment functions are provided by `src/deploy.py`.
 
 Refer to the example flows in the `flows` directory for a usage reference.
 **Run the flow scripts from the base directory, not within `flows`!**
