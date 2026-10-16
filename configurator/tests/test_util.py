@@ -9,6 +9,26 @@
 # Contributors:
 #   TMDT der Bergischen Universität Wuppertal
 
+import os
+
+import pytest
+
+from config import ConnectorConfig
+
+
+@pytest.fixture(autouse=True)
+def isolated_config_environment(monkeypatch):
+    names = set(ConnectorConfig.model_fields)
+    names.update(
+        field.validation_alias.lower()
+        for field in ConnectorConfig.model_fields.values()
+        if isinstance(field.validation_alias, str)
+    )
+    for name in tuple(os.environ):
+        if name.lower() in names:
+            monkeypatch.delenv(name)
+
+
 def write_valid_config(env_file):
     env_file.write_text(
         "\n".join(
@@ -17,6 +37,7 @@ def write_valid_config(env_file):
                 "PARTICIPANT_DID=did:web:connector.test.local:participant",
                 "PARTICIPANT_CONTEXT_ID=participant",
                 "TRUSTED_ISSUER_DID=did:web:issuer.test.local:issuer",
+                "MEMBERSHIP_CREDENTIAL_DEFINITION_ID=dev-credential-def-1",
                 "WALLET_IDENTITY_API=http://127.0.0.1:20100/api/identity",
                 "WALLET_SUPERUSER_KEY=YWRtaW4.test-token",
                 "VAULT_TOKEN=test-vault-token",

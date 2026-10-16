@@ -64,25 +64,25 @@ class ConnectorConfig(BaseSettings):
         errors: list[str] = []
 
         # PARTICIPANT_DSP_CALLBACK_ADDRESS
-        if not self.participant_dsp_callback_address:
+        if not self.participant_dsp_callback_address and self.connector_domain:
             self.participant_dsp_callback_address = f"https://{self.connector_domain}/dsp"
         # PARTICIPANT_DATAPLANE_PUBLIC_URL
-        if not self.participant_dataplane_public_url:
+        if not self.participant_dataplane_public_url and self.connector_domain:
             self.participant_dataplane_public_url = f"https://{self.connector_domain}/public"
         # PARTICIPANT_CREDENTIAL_SERVICE_URL
-        if not self.participant_credential_service_url:
+        if not self.participant_credential_service_url and self.connector_domain and self.participant_context_id:
             self.participant_credential_service_url = (
                 f"https://{self.connector_domain}"
                 f"/api/credentials/v1/participants/{self.participant_context_id}"
             )
         # PARTICIPANT_ISSUER_SERVICE_URL
-        if not self.participant_issuer_service_url:
+        if not self.participant_issuer_service_url and self.connector_domain and self.participant_context_id:
             self.participant_issuer_service_url = (
                 f"https://{self.connector_domain}"
                 f"/api/issuance/v1beta/participants/{self.participant_context_id}"
             )
         # CONNECTOR_MANAGEMENT_API
-        if not self.connector_management_api:
+        if not self.connector_management_api and self.connector_domain:
             self.connector_management_api = (
                 f"https://{self.connector_domain}/management"
             )
@@ -93,9 +93,8 @@ class ConnectorConfig(BaseSettings):
 
         # Checking missing values
         required = {
-            "CONNECTOR_DOMAIN": self.connector_domain,
+            "CONNECTOR_MANAGEMENT_API": self.connector_management_api,
             "PARTICIPANT_DID": self.participant_did,
-            "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
             "CONNECTOR_MANAGEMENT_API_KEY": self.connector_management_api_key,
         }
 
@@ -109,9 +108,8 @@ class ConnectorConfig(BaseSettings):
 
         # Checking default values
         placeholders = {
-            "CONNECTOR_DOMAIN": self.connector_domain,
+            "CONNECTOR_MANAGEMENT_API": self.connector_management_api,
             "PARTICIPANT_DID": self.participant_did,
-            "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
             "CONNECTOR_MANAGEMENT_API_KEY": self.connector_management_api_key,
         }
         invalid = [
@@ -147,6 +145,8 @@ class ConnectorConfig(BaseSettings):
         """Validate settings used only to create a local wallet participant."""
 
         values = {
+            "CONNECTOR_DOMAIN": self.connector_domain,
+            "PARTICIPANT_CONTEXT_ID": self.participant_context_id,
             "TRUSTED_ISSUER_DID": self.trusted_issuer_did,
             "WALLET_SUPERUSER_KEY": self.wallet_superuser_key,
             "VAULT_TOKEN": self.vault_token,

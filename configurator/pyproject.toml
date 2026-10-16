@@ -29,6 +29,7 @@ py-modules = [
     "edc_cli",
     "client",
     "config",
+    "config_setup",
     "catalog",
     "credentials",
     "deploy",
@@ -39,7 +40,6 @@ py-modules = [
     "payloads",
     "publish",
     "request",
-    "runtime",
     "state",
     "util",
 ]

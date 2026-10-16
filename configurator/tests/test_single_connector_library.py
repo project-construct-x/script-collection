@@ -19,7 +19,8 @@ import pytest
 from config import ConnectorConfig
 from onboarding import initialize_participant, onboard_connector
 from state import load_state
-from tests.test_util import write_valid_config
+from test_util import isolated_config_environment as isolated_config_environment
+from test_util import write_valid_config
 
 def test_load_config_maps_identity_values_and_resolves_paths(tmp_path: Path) -> None:
     stack_dir = tmp_path / "connector"
@@ -45,9 +46,9 @@ def test_load_config_maps_identity_values_and_resolves_paths(tmp_path: Path) -> 
 
 
 def test_onboarding_rejects_example_configuration() -> None:
-    with pytest.raises(ValueError, match="[INVALID]"):
-        # use example config to not interfere with a present .env for local testing
-        ConnectorConfig.from_env(".env.example")
+    example_file = Path(__file__).resolve().parents[1] / ".env.example"
+    with pytest.raises(ValueError, match=r"\[INVALID\]"):
+        ConnectorConfig.from_env(example_file)
 
 def test_dsp_endpoint_does_not_duplicate_protocol_version(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
@@ -87,11 +88,13 @@ def test_dsp_endpoint_does_not_duplicate_protocol_version(tmp_path: Path) -> Non
 def test_initialize_participant_controls_only_local_components(monkeypatch, tmp_path: Path) -> None:
     state_path = tmp_path / ".state" / "participant.json"
     config = ConnectorConfig(
+        _env_file=None,
         connector_stack_dir=tmp_path,
         connector_domain="connector.test.local",
         participant_did="did:web:connector.test:participant",
         participant_context_id="participant",
         trusted_issuer_did="did:web:issuer.test:issuer",
+        membership_credential_definition_id="dev-credential-def-1",
         participant_credential_service_url="https://connector.test/api/credentials/participant",
         participant_issuer_service_url="https://connector.test/api/issuance/participant",
         wallet_superuser_key="YWRtaW4.test-key",

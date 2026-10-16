@@ -190,7 +190,7 @@ class Catalog:
             self,
             asset_id: str = "",
             offer_id: str = "",
-            index: int = -1,
+            index: int | None = None,
     ) -> Offer:
         """Select a single offer from the catalog.
 
@@ -212,7 +212,7 @@ class Catalog:
                     return offer
             raise CatalogError(f"No offer found for asset id: {asset_id}")
 
-        if offer_id and offer_id >= 0:
+        if offer_id:
             for offer in self.offers:
                 if offer.offer_id == offer_id:
                     return offer

@@ -20,8 +20,10 @@ from catalog import Catalog, Offer
 from config import ConnectorConfig
 from credentials import list_credentials, request_membership_credential
 from exceptions import ConnectorError
+from http_client import ensure_success, request_json
 from onboarding import initialize_participant
-from publish import publish_asset, unpublish_asset
+from payloads import EDC_VOCAB
+from publish import list_published_assets, publish_asset, unpublish_asset
 from request import (
     negotiate_endpoint_reference,
     pull_data,
@@ -31,7 +33,6 @@ from request import (
     send_json_via_endpoint,
     wait_for_endpoint_data_reference, )
 from state import load_state
-from util import dsp_endpoint_for_protocol
 
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -49,7 +50,7 @@ class ConnectorClient:
             config = ConnectorConfig()
         self.config = config
 
-    def status(self):
+    def status(self) -> bool:
 
         print("ConnectorClient version 0.1.0")
         print(f"Participant DID    : {self.config.participant_did}")
@@ -62,10 +63,11 @@ class ConnectorClient:
         try:
             self.check_management_api()
             print(f"{GREEN}OK{RESET}")
-        except ConnectorError:
+        except ConnectorError as exc:
             print(f"{RED}FAILED{RESET}")
-            # print(f"  Reason: {exc}")
-            print("  Management API is unreachable or not authorized!")
+            print(f"  Reason: {exc}")
+            return False
+        return True
 
 
     def bootstrap_participant(self) -> dict[str, str]:
@@ -106,6 +108,9 @@ class ConnectorClient:
 
     def unpublish_asset(self, asset_id: str) -> dict[str, Any]:
         return unpublish_asset(self.config, asset_id)
+
+    def list_published_assets(self) -> dict[str, list[str]]:
+        return list_published_assets(self.config)
 
     def fetch_catalog(self, peer_did: str, peer_dsp: str, limit: int = 0) -> Catalog:
         return request_catalog(self.config, peer_did=peer_did, peer_dsp=peer_dsp, limit=limit)
@@ -202,12 +207,12 @@ class ConnectorClient:
         return True
 
     def check_management_api(self) -> bool:
-        """Verify the connector through a catalog request to its own DSP endpoint."""
-        catalog = self.fetch_catalog(peer_did=self.config.participant_did,
-                                     peer_dsp=dsp_endpoint_for_protocol(
-                                         base_dsp=self.config.participant_dsp_callback_address,
-                                         protocol=self.config.protocol), limit=1)
-        if catalog:
-            return True
-        else:
-            return False
+        """Verify access to the connector's Management API."""
+        status, body = request_json(
+            "POST",
+            f"{self.config.connector_management_api}/v3/assets/request",
+            {"@context": {"@vocab": EDC_VOCAB}, "@type": "QuerySpec", "limit": 1},
+            {"x-api-key": self.config.connector_management_api_key},
+        )
+        ensure_success("check management API", status, body, allowed=(200,))
+        return True

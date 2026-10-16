@@ -17,7 +17,8 @@ import pytest
 
 from config import ConnectorConfig
 from publish import build_publish_ids, validate_source_url
-from tests.test_util import write_valid_config
+from test_util import isolated_config_environment as isolated_config_environment
+from test_util import write_valid_config
 
 def test_explicit_asset_id_produces_stable_related_ids(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"

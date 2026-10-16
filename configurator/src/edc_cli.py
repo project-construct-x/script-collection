@@ -10,6 +10,7 @@
 #   TMDT der Bergischen Universität Wuppertal
 
 import argparse
+import json
 import mimetypes
 import sys
 from pathlib import Path
@@ -17,9 +18,10 @@ from urllib.parse import quote, urlparse
 
 from pydantic import ValidationError
 
+from catalog import Catalog, Offer
 from client import ConnectorClient
 from config import ConnectorConfig
-from util import dsp_endpoint_for_protocol
+from exceptions import CatalogError
 
 ENV_FILE = ".env"
 LOCAL_FILE_SERVER_CONTAINER = "local-webserver"
@@ -51,6 +53,19 @@ def resolve_content_type(content_type: str) -> str:
     return CONTENT_TYPE_ALIASES.get(content_type.lower(), content_type)
 
 
+def prompt_index(count: int) -> int:
+    while True:
+        choice = input(f"Select an entry (0-{count - 1}): ")
+        try:
+            index = int(choice)
+        except ValueError:
+            print("Please enter a valid integer.")
+            continue
+        if 0 <= index < count:
+            return index
+        print(f"Index must be between 0 and {count - 1}.")
+
+
 def select_file(file_path: str | None) -> Path:
     if file_path:
         selected_file = Path(file_path)
@@ -73,16 +88,15 @@ def select_file(file_path: str | None) -> Path:
     for index, path in enumerate(files):
         print(f"[{index}] {path.name}")
 
-    while True:
-        choice = input(f"Select a file (0-{len(files) - 1}): ")
-        try:
-            index = int(choice)
-        except ValueError:
-            print("Please enter a valid integer.")
-            continue
-        if 0 <= index < len(files):
-            return files[index]
-        print(f"Index must be between 0 and {len(files) - 1}.")
+    return files[prompt_index(len(files))]
+
+
+def choose_offer(catalog: Catalog, asset_id: str | None) -> Offer:
+    if asset_id:
+        return catalog.select_offer(asset_id=asset_id)
+    if len(catalog) == 0:
+        raise CatalogError("Peer catalog is empty")
+    return catalog.select_offer(index=prompt_index(len(catalog)))
 
 
 def command_start(args: argparse.Namespace) -> None:
@@ -97,12 +111,8 @@ def command_start(args: argparse.Namespace) -> None:
             print("Aborted.")
             return
 
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
-
-    from flows.simple_connector_flow import run_start
-    run_start()
+    from deploy import setup
+    setup()
     print("Startup complete.")
 
 
@@ -116,20 +126,17 @@ def command_stop(args: argparse.Namespace) -> None:
         if answer not in ("y", "yes", "ok"):
             print("Aborted.")
             return
-    from flows.stop_local import run_stop
-    run_stop(args.remove)
+    from deploy import stop
+    stop(args.remove)
 
 
-def command_status(_: argparse.Namespace) -> None:
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
+def command_status(_: argparse.Namespace) -> int:
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
-    client.status()
+    return 0 if client.status() else 1
 
 def command_config(args: argparse.Namespace) -> None:
-    from flows.setup import run_setup, show_configuration
+    from config_setup import run_setup, show_configuration
 
     if args.show:
         show_configuration()
@@ -138,20 +145,20 @@ def command_config(args: argparse.Namespace) -> None:
     run_setup()
 
 def command_request(args: argparse.Namespace) -> None:
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
-    from flows.request_catalog_and_asset import run_request_asset
-    if not args.did or not args.endpoint:
-        print("Please specify the peer DID and endpoint to start a request!")
-        return
-    run_request_asset(peer_did=args.did, peer_dsp=args.endpoint, asset_id=args.assetid)
+    config = ConnectorConfig.from_env(ENV_FILE)
+    client = ConnectorClient(config)
+    print("Requesting catalog...")
+    catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
+    print(catalog)
+    offer = choose_offer(catalog, args.assetid)
+    print(offer)
+    print("\nRequesting asset...")
+    result = client.request_http_asset(peer_did=args.did, peer_dsp=args.endpoint, offer=offer)
+    print("\nDownloaded asset:")
+    print(json.dumps(result, indent=2))
 
 
 def command_publish(args: argparse.Namespace) -> None:
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
     published = client.publish_http_asset(
@@ -163,75 +170,36 @@ def command_publish(args: argparse.Namespace) -> None:
 
 
 def command_unpublish(args: argparse.Namespace) -> None:
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
     asset_id = args.assetid
     if not asset_id:
-        catalog = client.fetch_catalog(
-            peer_did=config.participant_did,
-            peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
-        )
-        print(catalog)
-        if not catalog:
-            print("No published assets.")
+        asset_ids = list(client.list_published_assets())
+        if not asset_ids:
+            print("No assets with exact-ID contract definitions.")
             return
-        while True:
-            choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
-            try:
-                index = int(choice)
-            except ValueError:
-                print("Please enter a valid integer.")
-                continue
-            if 0 <= index < len(catalog):
-                asset_id = catalog.select_offer(index=index).asset_id
-                break
-            print(f"Index must be between 0 and {len(catalog) - 1}.")
+        for index, published_asset_id in enumerate(asset_ids):
+            print(f"[{index}] Asset ID: {published_asset_id}")
+        asset_id = asset_ids[prompt_index(len(asset_ids))]
 
     if not args.y:
         answer = input(f"Unpublish asset {asset_id!r}? Existing contracts and source data remain. [yes/No] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Aborted.")
             return
-    client.unpublish_asset(asset_id)
-    catalog = client.fetch_catalog(
-        peer_did=config.participant_did,
-        peer_dsp=dsp_endpoint_for_protocol(config.participant_dsp_callback_address, config.protocol),
-    )
-    if any(offer.asset_id == asset_id for offer in catalog):
-        raise RuntimeError("Asset is still offered by another contract definition; shared definitions were not changed")
+    result = client.unpublish_asset(asset_id)
     print(f"Unpublished asset {asset_id}")
+    print("Removed contract definitions:", ", ".join(result["contractDefinitionIds"]))
 
 
 def command_send_file(args: argparse.Namespace) -> None:
-    if not Path(ENV_FILE).exists():
-        print("No environment file found. Run edc config first.")
-        return
-
     selected_file = select_file(args.file)
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
     catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
     print(catalog)
 
-    if args.assetid:
-        offer = catalog.select_offer(asset_id=args.assetid)
-    else:
-        if len(catalog) == 0:
-            raise RuntimeError("Peer catalog is empty")
-        while True:
-            choice = input(f"Select an asset (0-{len(catalog) - 1}): ")
-            try:
-                index = int(choice)
-            except ValueError:
-                print("Please enter a valid integer.")
-                continue
-            if 0 <= index < len(catalog):
-                offer = catalog.select_offer(index=index)
-                break
-            print(f"Index must be between 0 and {len(catalog) - 1}.")
+    offer = choose_offer(catalog, args.assetid)
 
     endpoint = client.negotiate_endpoint_reference(
         peer_did=args.did,
@@ -280,7 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish_p.set_defaults(func=command_publish)
 
     unpublish_p = sub.add_parser("unpublish", help="Remove an asset's catalog offer without deleting its data")
-    unpublish_p.add_argument("--assetid", help="Asset ID; omit for interactive selection from your own catalog")
+    unpublish_p.add_argument("--assetid", help="Asset ID; omit for interactive selection from contract definitions")
     unpublish_p.add_argument("-y", action="store_true", help="Skip confirmation")
     unpublish_p.set_defaults(func=command_unpublish)
 
@@ -312,6 +280,10 @@ def print_validation_error(exc: ValidationError) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command != "config" and not Path(ENV_FILE).exists():
+        print("No environment file found. Run edc config first.", file=sys.stderr)
+        return 2
 
     try:
         result = args.func(args)

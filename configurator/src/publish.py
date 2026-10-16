@@ -29,11 +29,11 @@ def build_publish_ids(config: ConnectorConfig, asset_id: str | None = None) -> d
         }
 
     suffix = uuid4().hex[:8]
-    prefix = config.participant_context_id
+    prefix = f"{config.participant_context_id}-" if config.participant_context_id else ""
     return {
-        "assetId": f"{prefix}-asset-{suffix}",
-        "policyId": f"{prefix}-policy-{suffix}",
-        "contractDefinitionId": f"{prefix}-contract-{suffix}",
+        "assetId": f"{prefix}asset-{suffix}",
+        "policyId": f"{prefix}policy-{suffix}",
+        "contractDefinitionId": f"{prefix}contract-{suffix}",
     }
 
 
@@ -148,12 +148,9 @@ def publish_asset(
     }
 
 
-def unpublish_asset(config: ConnectorConfig, asset_id: str) -> dict[str, Any]:
-    """Remove contract definitions that select this asset by its exact ID."""
-    if not asset_id:
-        raise ValueError("asset_id is required")
-
-    definition_ids = []
+def list_published_assets(config: ConnectorConfig) -> dict[str, list[str]]:
+    """Map asset IDs to contract definitions using exact-ID selectors."""
+    assets: dict[str, list[str]] = {}
     offset = 0
     while True:
         status, body = request_json(
@@ -167,17 +164,27 @@ def unpublish_asset(config: ConnectorConfig, asset_id: str) -> dict[str, Any]:
             selectors = _read(definition, "assetsSelector", "edc:assetsSelector") or []
             if isinstance(selectors, dict):
                 selectors = [selectors]
-            if any(
-                _read(selector, "operandLeft", "edc:operandLeft") == f"{EDC_VOCAB}id"
-                and _read(selector, "operator", "edc:operator") == "="
-                and _read(selector, "operandRight", "edc:operandRight") == asset_id
-                for selector in selectors
-            ):
-                definition_ids.append(definition["@id"])
+            for selector in selectors:
+                if (
+                    _read(selector, "operandLeft", "edc:operandLeft") == f"{EDC_VOCAB}id"
+                    and _read(selector, "operator", "edc:operator") == "="
+                ):
+                    asset_id = _read(selector, "operandRight", "edc:operandRight")
+                    definition_ids = assets.setdefault(asset_id, [])
+                    if definition["@id"] not in definition_ids:
+                        definition_ids.append(definition["@id"])
         if len(body) < 100:
             break
         offset += len(body)
+    return assets
 
+
+def unpublish_asset(config: ConnectorConfig, asset_id: str) -> dict[str, Any]:
+    """Remove contract definitions that select this asset by its exact ID."""
+    if not asset_id:
+        raise ValueError("asset_id is required")
+
+    definition_ids = list_published_assets(config).get(asset_id, [])
     if not definition_ids:
         raise ValueError(f"No contract definition selects asset {asset_id!r} by its exact ID")
 
