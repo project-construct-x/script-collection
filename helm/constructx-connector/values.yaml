@@ -774,6 +774,19 @@ vaultInit:
     # File path for the audit device. Must reside within vault.server.auditStorage.mountPath.
     # Leave empty to skip enabling the audit device.
     auditPath: "/vault/audit/audit.log"
+    # Keeps the persistent Vault unsealed after a Vault pod restart (Deployment <fullname>-vault-unsealer).
+    # Only rendered with install.vault=true, mode=hashicorp-persistent and autoInit.enabled=true.
+    unsealer:
+      enabled: true
+      # Seconds between two seal status checks.
+      interval: 300
+      resources:
+        limits:
+          cpu: 50m
+          memory: 32Mi
+        requests:
+          cpu: 10m
+          memory: 16Mi
 
 networkPolicy:
   # -- If `true` network policy will be created to restrict access to control- and dataplane

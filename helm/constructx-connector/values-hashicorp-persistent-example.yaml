@@ -53,6 +53,11 @@ vaultInit:
   autoInit:
     enabled: true
     keysSecretName: "user-edc-vault-keys"
+    # -- Vault auto-unseal
+    unsealer:
+      enabled: true
+      # Seconds between two seal status checks.
+      interval: 300
 
 controlplane:
   ingresses:
