@@ -66,7 +66,9 @@ deployment via `secretKeyRef` instead of being taken from
 
 > **autoInit is not production safe.** A single unseal key and the root token
 > are stored as a Kubernetes secret in the release namespace. The Vault is
-> sealed again after a pod restart and is *not* unsealed automatically. For
+> sealed again after a pod restart: With autoInit, the unsealer unseals
+> the Vault automatically after a restart. It uses the same unseal key
+> Secret as autoInit and is therefore not production-safe. For
 > production use KMS auto-unseal and external key management, and keep
 > `autoInit.enabled=false`.
 
@@ -286,6 +288,9 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vaultInit.autoInit.enabled` | bool | `false` | Auto-initialise and unseal a persistent Vault. `hashicorp-persistent` only. Non-production. |
 | `vaultInit.autoInit.keysSecretName` | string | `wallet-vault-keys` | Secret holding the unseal key and root token. |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File audit device path. Empty to skip enabling audit. |
+| `vaultInit.autoInit.unsealer.enabled` | bool | `true` | Keeps a persistent Vault unsealed after a Vault pod restart (Deployment `<fullname>-vault-unsealer`). Only rendered with `install.vault=true`, `vaultInit.mode=hashicorp-persistent` and `autoInit`. Reads the unseal key from `keysSecretName`, non-production only. |
+| `vaultInit.autoInit.unsealer.interval` | int | `300` | Seconds between two seal status checks |
+| `vaultInit.autoInit.unsealer.resources` | object | see `values.yaml` | Resources of the unsealer container |
 
 ## Sources
 

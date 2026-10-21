@@ -134,6 +134,15 @@ Defines Vault Token Secret Name for autoInit
 {{- end -}}
 
 {{/*
+Defines if the vault unsealer is rendered. Returns "true" or "false".
+Requires a Vault installed by this chart (install.vault), mode=hashicorp-persistent and autoInit.
+*/}}
+{{- define "wallet.vault.unsealer.enabled" -}}
+{{- $enabled := dig "autoInit" "unsealer" "enabled" false .Values.vaultInit -}}
+{{- and .Values.install.vault (eq (include "wallet.vault.mode" .) "hashicorp-persistent") (eq (include "wallet.vault.autoInit.enabled" .) "true") $enabled | toString -}}
+{{- end -}}
+
+{{/*
 Defines the PostgreSQL host.
 global.postgresql.host -> postgresql.host -> <release>-postgresql
 */}}
