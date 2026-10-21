@@ -144,10 +144,11 @@
              (key-shares=1) and stores the unseal key and root token as a Kubernetes
              secret in this namespace. Anyone able to read that secret controls the Vault.
              For production use KMS auto-unseal and external key management.
+{{- if and .Values.install.vault (ne (include "issuer-wallet.vault.unsealer.enabled" .) "true") }}
 
   ⚠ WARNING: The Vault pod becomes sealed again after a restart and is NOT
-             unsealed automatically unless an unseal CronJob or KMS auto-unseal is in
-             place.
+             unsealed automatically. Enable vaultInit.autoInit.unsealer or use KMS auto-unseal.
+{{- end }}
 
   ⚠ WARNING: The file audit device is not rotated automatically. Watch the
              auditStorage PVC — a full audit volume can block the Vault.
