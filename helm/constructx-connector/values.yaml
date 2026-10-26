@@ -119,7 +119,7 @@ controlplane:
     # -- [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use
     pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion
-    tag: "latest"
+    tag: "0.17.0-1"
   # -- Configure ghcr credentials to pull the control plane image
   imagePullSecrets:
     - name: ghcr-creds
@@ -387,7 +387,7 @@ dataplane:
     # -- [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use
     pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion
-    tag: "latest"
+    tag: "0.17.0-1"
   # -- Configure ghcr credentials to pull the control plane image
   imagePullSecrets:
     - name: ghcr-creds

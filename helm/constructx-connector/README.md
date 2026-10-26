@@ -164,7 +164,7 @@ Global values are shared with other charts when this chart is used as a dependen
 |-----|------|---------|-------------|
 | `controlplane.image.repository` | string | `ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault` | Control plane image. When left empty the deployment selects the correct image automatically. |
 | `controlplane.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
-| `controlplane.image.tag` | string | `latest` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `controlplane.image.tag` | string | `0.17.0-1` | Image tag. Defaults to `chart.appVersion` if left empty. |
 | `controlplane.imagePullSecrets` | list | `[{name: ghcr-creds}]` | ghcr credentials to pull the control plane image. |
 | `controlplane.initContainers` | list | `[]` | Additional init containers run before the control plane starts. |
 | `controlplane.debug.enabled` | bool | `false` | Enables Java debugging mode. |
@@ -263,7 +263,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 |-----|------|---------|-------------|
 | `dataplane.image.repository` | string | `ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault` | Data plane image. When left empty the deployment selects the correct image automatically. |
 | `dataplane.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
-| `dataplane.image.tag` | string | `latest` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `dataplane.image.tag` | string | `0.17.0-1` | Image tag. Defaults to `chart.appVersion` if left empty. |
 | `dataplane.imagePullSecrets` | list | `[{name: ghcr-creds}]` | ghcr credentials to pull the data plane image. |
 | `dataplane.initContainers` | list | `[]` | Additional init containers run before the data plane starts. |
 | `dataplane.debug.enabled` | bool | `false` | Enables Java debugging mode. |
