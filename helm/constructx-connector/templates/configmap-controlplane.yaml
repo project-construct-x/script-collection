@@ -30,22 +30,8 @@ data:
   # DEFAULTS #
   ############
   EDC_IAM_DID_WEB_USE_HTTPS: "true"
-  TX_EDC_POSTGRESQL_MIGRATION_ASSET_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_AGREEMENTBPNS_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_BPN_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_CONTRACTDEFINITION_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_CONTRACTNEGOTIATION_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_DATAPLANEINSTANCE_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_EDR_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_FEDERATEDCATALOG_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_JTI-VALIDATION_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_POLICY-MONITOR_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_POLICY_ENABLED: "false"
-  TX_EDC_POSTGRESQL_MIGRATION_TRANSFERPROCESS_ENABLED: "false"
   EDC_IAM_CREDENTIAL_REVOCATION_MIMETYPE: "application/json"
-  TX_EDC_IAM_IATP_DEFAULT-SCOPES_DEFAULT_ALIAS: {{ .Values.iatp.defaultScope.alias | required ".Values.iatp.defaultScopes.alias is required" | quote }}
-  TX_EDC_IAM_IATP_DEFAULT-SCOPES_DEFAULT_TYPE: {{ .Values.iatp.defaultScope.type | required ".Values.iatp.defaultScopes.type is required" | quote }}
-  TX_EDC_IAM_IATP_DEFAULT-SCOPES_DEFAULT_OPERATION: {{ .Values.iatp.defaultScope.operation | required ".Values.iatp.defaultScopes.operation is required" | quote }}
+  EDC_ABAC_DEFAULTCREDENTIAL:  {{ .Values.iatp.defaultScope.type | required ".Values.iatp.defaultScope.type is required" | quote }}
 
   #######
   # API #

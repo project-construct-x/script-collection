@@ -60,12 +60,8 @@ iatp:
         secret_alias: "change-me"
   # -- Default scope that is always requested when presenting credentials (DCP).
   defaultScope:
-    # -- Scope alias
-    alias: "org.eclipse.dspace.dcp.vc.type"
     # -- Credential type
     type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
-    # -- Operation
-    operation: "read"
   didService:
     selfRegistration:
       # -- Whether Service Self Registration is enabled
