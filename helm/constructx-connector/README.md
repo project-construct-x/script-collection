@@ -146,6 +146,9 @@ Global values are shared with other charts when this chart is used as a dependen
 | `iatp.sts.oauth.token_url` | string | `https://change-me` | URL where connectors can request OAuth2 access tokens for DIV access. |
 | `iatp.sts.oauth.client.id` | string | `""` | Client ID for requesting the OAuth2 access token for DIV access. Defaults to `iatp.id`. |
 | `iatp.sts.oauth.client.secret_alias` | string | `change-me` | Vault alias under which the client secret for DIV access is stored. |
+| `iatp.defaultScope.alias` | string | `org.eclipse.dspace.dcp.vc.type` | Alias of default scope when presenting credentials. |
+| `iatp.defaultScope.type` | string | `https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential` | Type of default scope when presenting credentials. |
+| `iatp.defaultScope.operation` | string | `read` | Operation of default scope when presenting credentials. |
 | `iatp.didService.selfRegistration.enabled` | bool | `false` | Whether Service Self Registration is enabled. |
 | `iatp.didService.selfRegistration.id` | string | `""` | Unique connector id used for register / unregister service inside the DID document (must be a valid URI). Defaults to `iatp.id`. |
 | `iatp.cache.enabled` | bool | `true` | Whether the Verifiable Presentation cache is enabled. |

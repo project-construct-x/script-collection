@@ -39,6 +39,8 @@ iatp:
       token_url: "https://user-wallet.staging.construct-x.net/api/sts/token"
       client:
         secret_alias: "usersecret"
+  defaultScope:
+    type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
 
 # -- Secret initialisation
 vaultInit:
