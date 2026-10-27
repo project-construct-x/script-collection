@@ -14,11 +14,10 @@ It will start the following containers on your local machine:
 
 
 
-Before anything else, please make sure you have the docker images for con-x-controlplane-postgresql-hashicorp-vault in your local docker repository, see [here](https://github.com/project-construct-x/constructx-edc/tree/develop/edc-controlplane/edc-controlplane-construct-x/con-x-controlplane-postgresql-hashicorp-vault) and [here](https://github.com/project-construct-x/constructx-edc/tree/develop/edc-dataplane/edc-dataplane-construct-x/con-x-dataplane-postgresql-hashicorp-vault). 
+Note that some of the required docker images need to be downloaded from GitHub's container registry. If the image download fails, the most 
+likely reason is that you need to do a docker login first. Please use a GitHub account, that is a member of the project-construct-x GitHub organization. Please contact us, if you are a member of construct-x, but currently not a member of our GitHub organization.  
 
-Beyond that, you need to obtain the docker image needed to run the wallets. The image is hosted on ghcr.io and should 
-be downloaded automatically as soon as you start the docker-compose (see below). If the image download fails, the most 
-likely reason is that you need to do a docker login first. Please use a GitHub account, that is a member of the project-construct-x GitHub organization. If you don't already have one, you will need to create a Personal Access Token (classic) on your GitHub account. This token should minimally have the 'read:packages' privilege. 
+Beyond that, you will need to create a Personal Access Token (classic) on your GitHub account. This token should minimally have the 'read:packages' privilege. 
 
 Then please open a shell and do a docker login with that token as described [here](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic).
 
@@ -98,8 +97,7 @@ EDC controlplane needs some time to complete the negotiation process respectivel
 
 ### Clean restart
 When you're done testing and want to end your session (using 'CTRL-C' on the terminal, where you started docker
-compose),
-you may want to run
+compose), you may want to run
 
 ```
 docker compose down -v
