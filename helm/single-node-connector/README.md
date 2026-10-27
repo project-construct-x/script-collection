@@ -71,7 +71,7 @@ fallbacks.
 | `global.vault.secretPath` | string | `"/v1/secret"` | KV v2 path used by all apps and both vault-init jobs. The KV mount is derived from it. |
 | `global.vault.mode` | string | `"hashicorp-dev"` | `hashicorp-dev` or `hashicorp-persistent` |
 | `global.vault.autoInit.enabled` | bool | `false` | Initialise and unseal a persistent Vault automatically. Only for `hashicorp-persistent`, non-production only. |
-| `global.vault.autoInit.keysSecretName` | string | `"constructx-vault-keys"` | Secret holding the unseal key and root token. Shared by both vault-init jobs. |
+| `global.vault.autoInit.keysSecretName` | string | `"edc-vault-keys"` | Secret holding the unseal key and root token. Shared by both vault-init jobs. |
 | `global.postgresql.host` | string | `"{{ .Release.Name }}-postgresql"` | Host of the shared PostgreSQL |
 | `global.postgresql.port` | int | `5432` | Port of the shared PostgreSQL |
 | `global.ingress.className` | string | `"nginx"` | Ingress class of all ingresses without own `className` |

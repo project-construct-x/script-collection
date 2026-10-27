@@ -67,6 +67,8 @@ constructx-connector:
       oauth:
         client:
           secret_alias: "usersecret"
+    defaultScope:
+      type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
 
 wallet:
   postgresql:
