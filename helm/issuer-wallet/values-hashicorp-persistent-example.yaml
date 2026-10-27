@@ -37,6 +37,7 @@ vaultInit:
     alias: "issuer-wallet-aes-key-alias"
   autoInit:
     enabled: true
+    keysSecretName: "issuer-vault-keys"
 
 wallet:
   image:

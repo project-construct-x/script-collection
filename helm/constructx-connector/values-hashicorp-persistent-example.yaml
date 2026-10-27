@@ -52,6 +52,7 @@ vaultInit:
     publicAlias: "user_pub"
   autoInit:
     enabled: true
+    keysSecretName: "user-edc-vault-keys"
 
 controlplane:
   ingresses:
