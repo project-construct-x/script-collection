@@ -43,7 +43,7 @@ global:
     mode: "hashicorp-dev"
     autoInit:
       enabled: false
-      keysSecretName: "constructx-vault-keys"
+      keysSecretName: "edc-vault-keys"
   postgresql:
     host: "{{ .Release.Name }}-postgresql"
     port: 5432
@@ -86,6 +86,10 @@ constructx-connector:
         token_url: "http://wallet:9292/api/sts/token"
         client:
           secret_alias: "usersecret"
+    # -- Default scope that is always requested when presenting credentials (DCP).
+    defaultScope:
+      # -- Credential type
+      type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
   vaultInit:
     rsa:
       enabled: true
