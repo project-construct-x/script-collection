@@ -46,7 +46,7 @@ body:json {
 }
 
 script:pre-request {
-  req.setHeader("x-api-key", bru.getEnvVar("ISSUER_APIKEY"));
+  req.setHeader("x-api-key", bru.getVar("ISSUER_APIKEY"));
 }
 
 settings {

@@ -94,7 +94,7 @@ services:
 
   wallet:
     container_name: wallet
-    image: ghcr.io/project-construct-x/wallet:0.17.0-1
+    image: ghcr.io/project-construct-x/wallet:0.18.0-1
     pull_policy: missing
     depends_on:
       postgres:
@@ -135,22 +135,10 @@ services:
 
   controlplane:
     container_name: controlplane
-    image: ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:latest
+    image: ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:0.17.0-1
     pull_policy: missing
     environment:
       - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
-      - tx.edc.postgresql.migration.asset.enabled=false
-      - tx.edc.postgresql.migration.agreementbpns.enabled=false
-      - tx.edc.postgresql.migration.bpn.enabled=false
-      - tx.edc.postgresql.migration.contractdefinition.enabled=false
-      - tx.edc.postgresql.migration.contractnegotiation.enabled=false
-      - tx.edc.postgresql.migration.dataplaneinstance.enabled=false
-      - tx.edc.postgresql.migration.edr.enabled=false
-      - tx.edc.postgresql.migration.federatedcatalog.enabled=false
-      - tx.edc.postgresql.migration.jti-validation.enabled=false
-      - tx.edc.postgresql.migration.policy-monitor.enabled=false
-      - tx.edc.postgresql.migration.policy.enabled=false
-      - tx.edc.postgresql.migration.transferprocess.enabled=false
       - edc.iam.trusted-issuer.example.id=${ISSUER_DID}
       - edc.iam.did.web.use.https=true
       - edc.iam.sts.oauth.client.secret.alias=vaultsecret
@@ -180,9 +168,7 @@ services:
       - edc.vault.hashicorp.url=http://vault:8200
       - edc.vault.hashicorp.health.check.enabled=true
       - edc.vault.hashicorp.token=vaultsecret0123456789
-      - tx.edc.iam.iatp.default-scopes.test.alias=org.eclipse.dspace.dcp.vc.type
-      - tx.edc.iam.iatp.default-scopes.test.type=MembershipCredential
-      - tx.edc.iam.iatp.default-scopes.test.operation=read
+      - edc.abac.defaultcredential=https://w3id.org/constructx/credentials/v0.1/MembershipCredential
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 10s
@@ -205,7 +191,7 @@ services:
 
   dataplane:
     container_name: dataplane
-    image: ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:latest
+    image: ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:0.17.0-1
     pull_policy: missing
     environment:
       - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
