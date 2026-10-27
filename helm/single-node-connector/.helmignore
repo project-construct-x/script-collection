@@ -21,3 +21,9 @@
 .idea/
 *.tmproj
 .vscode/
+# packaged charts and local artefacts
+*.log
+*.orig
+*.bak
+ci/
+packages/
