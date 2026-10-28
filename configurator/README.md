@@ -55,30 +55,20 @@ python -m build
 
 ### Runtime Images
 
-`edc start` uses the image references in `docker/.docker.env`. The bundled
-configuration was tested with Construct-X Wallet `0.18.0-1`, HashiMock, and
-the Control Plane and Data Plane built from `constructx-edc` commit
-`021daa740a74c4456a4a02782b88bbce0203247d`.
+`edc start` pulls missing runtime images from GitHub Container Registry (GHCR),
+using the references in `docker/.docker.env`. The defaults use the Control Plane
+and Data Plane `latest` images, Construct-X Wallet `0.18.0-1`, and HashiMock.
+No local build of the planes is required.
 
-**Note:** The Control Plane and Data Plane images currently need to be built
-locally before starting the connector. The versioned image names in
-`docker/.docker.env` refer to locally built images.
+Registry access may require authentication:
 
-To build the matching planes on a host with Docker and the required JDK:
-
-```bash
-git clone https://github.com/project-construct-x/constructx-edc.git
-cd constructx-edc
-git checkout 021daa740a74c4456a4a02782b88bbce0203247d
-./gradlew \
-  :edc-controlplane:edc-controlplane-construct-x:con-x-controlplane-postgresql-hashicorp-vault:dockerize \
-  :edc-dataplane:edc-dataplane-construct-x:con-x-dataplane-postgresql-hashicorp-vault:dockerize
-docker tag con-x-controlplane-postgresql-hashicorp-vault:latest con-x-controlplane-postgresql-hashicorp-vault:0.13.0-021daa74
-docker tag con-x-dataplane-postgresql-hashicorp-vault:latest con-x-dataplane-postgresql-hashicorp-vault:0.13.0-021daa74
+```sh
+docker login ghcr.io
 ```
 
-The images must be available on the Docker host running the connector. Access
-to the Wallet and HashiMock images may require a GHCR login.
+To select other compatible images, edit `CONTROLPLANE_IMAGE` and
+`DATAPLANE_IMAGE` in `docker/.docker.env`. The `latest` tags are mutable; use
+fixed tags or digests to pin a deployment.
 
 ### Configuration
 Create the runtime environment file from the shipped example
