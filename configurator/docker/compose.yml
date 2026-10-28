@@ -167,7 +167,7 @@ services:
       edc-wallet:
         condition: service_started
     environment:
-      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
@@ -194,12 +194,27 @@ services:
       edc.datasource.default.url: jdbc:postgresql://postgres:5432/connector_controlplane
       edc.datasource.default.user: ${POSTGRES_USER:-admin}
       edc.datasource.default.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      tx.edc.postgresql.migration.asset.enabled: "false"
+      tx.edc.postgresql.migration.agreementbpns.enabled: "false"
+      tx.edc.postgresql.migration.bpn.enabled: "false"
+      tx.edc.postgresql.migration.contractdefinition.enabled: "false"
+      tx.edc.postgresql.migration.contractnegotiation.enabled: "false"
+      tx.edc.postgresql.migration.dataplaneinstance.enabled: "false"
+      tx.edc.postgresql.migration.edr.enabled: "false"
+      tx.edc.postgresql.migration.federatedcatalog.enabled: "false"
+      tx.edc.postgresql.migration.jti-validation.enabled: "false"
+      tx.edc.postgresql.migration.policy-monitor.enabled: "false"
+      tx.edc.postgresql.migration.policy.enabled: "false"
+      tx.edc.postgresql.migration.transferprocess.enabled: "false"
       edc.vault.hashicorp.url: http://edc-vault:8200
       edc.vault.hashicorp.health.check.enabled: "true"
       edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
       tx.edc.iam.dcp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
       tx.edc.iam.dcp.default-scopes.membership.type: MembershipCredential
       tx.edc.iam.dcp.default-scopes.membership.operation: read
+      tx.edc.iam.iatp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
+      tx.edc.iam.iatp.default-scopes.membership.type: MembershipCredential
+      tx.edc.iam.iatp.default-scopes.membership.operation: read
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 15s
@@ -249,7 +264,7 @@ services:
       edc.vault.hashicorp.url: http://edc-vault:8200
       edc.vault.hashicorp.health.check.enabled: "true"
       edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
