@@ -94,6 +94,29 @@ helm dependency build
 helm install issuer . -f my-override-values.yaml
 ```
 
+> **Do not use `--wait` or `--atomic` for the first installation with
+> `vaultInit.mode=hashicorp-persistent` and `vaultInit.autoInit.enabled=true`.**
+> See [Installing with autoInit](#installing-with-autoinit).
+
+### Installing with autoInit
+
+On the first installation the Vault is neither initialised nor unsealed, so the Vault pod
+and the issuer wallet pod stay not ready until the `vault-init` job has run. The job is a
+`post-install,post-upgrade` hook. With `--wait` (or `--atomic`) Helm waits for
+all resources to become ready *before* it runs post-install hooks, so the installation
+blocks until the timeout and fails.
+
+Install without `--wait`. Helm still waits for the hook job to complete. Wait for the
+rollout explicitly afterwards:
+
+```bash
+helm install issuer . -n <namespace> -f my-override-values.yaml
+kubectl rollout status deployment/<fullname> -n <namespace> --timeout=5m
+```
+
+Upgrades of an initialised and unsealed Vault can use `--wait`. A sealed Vault (e.g. after a
+pod restart) must be unsealed before `helm upgrade --wait`.
+
 ## Values
 
 ### Top-level

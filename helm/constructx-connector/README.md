@@ -87,11 +87,37 @@ deployments via `secretKeyRef` instead of being taken from
 ## Installation
 
 ```bash
+# Add Hashicorp Repository
+helm repo add hashicorp https://helm.releases.hashicorp.com
 # Add dependencies
 helm dependency build
 # Install
 helm install connector . -f my-override-values.yaml
 ```
+
+> **Do not use `--wait` or `--atomic` for the first installation with
+> `vaultInit.mode=hashicorp-persistent` and `vaultInit.autoInit.enabled=true`.**
+> See [Installing with autoInit](#installing-with-autoinit).
+
+### Installing with autoInit
+
+On the first installation the Vault is neither initialised nor unsealed, so the Vault pod
+and the control plane and data plane pods stay not ready until the `vault-init` job has run.
+The job is a `post-install,post-upgrade` hook. With `--wait` (also implied by `--atomic`)
+Helm waits for all resources to become ready *before* it runs post-install hooks, so the
+installation blocks until the timeout and fails.
+
+Install without `--wait`. Helm still waits for the hook job to complete. Wait for the
+rollout explicitly afterwards:
+
+```bash
+helm install connector . -n <namespace> -f my-override-values.yaml
+kubectl rollout status deployment/<fullname>-controlplane -n <namespace> --timeout=5m
+kubectl rollout status deployment/<fullname>-dataplane -n <namespace> --timeout=5m
+```
+
+Upgrades of an initialised and unsealed Vault can use `--wait`. A sealed Vault (e.g. after a
+pod restart) must be unsealed before `helm upgrade --wait`.
 
 ## Values
 
