@@ -41,11 +41,9 @@ spec:
         {{- include "conxdc.labels" . | nindent 8 }}
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "conxdc.serviceAccountName" . }}
-{{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
-      # Ensure that SA Token is mounted
-      automountServiceAccountToken: true
-{{- end }}
+      {{- include "conxdc.imagePullSecrets" (dict "context" $) | nindent 6 }}
+      serviceAccountName: {{ include "conxdc.vaultInit.serviceAccountName" . }}
+      automountServiceAccountToken: {{ eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
       containers:
         - name: vault-init
           image: {{ include "conxdc.vaultInit.image" . }}
@@ -92,7 +90,7 @@ spec:
             - name: APP_TOKEN_SECRET_NAME
               value: {{ include "conxdc.appTokenSecretName" . | quote }}
             - name: APP_POLICY_NAME
-              value: "deployment"
+              value: {{ include "conxdc.vault.appPolicyName" . | quote }}
           {{- end }}
           volumeMounts:
             - name: script

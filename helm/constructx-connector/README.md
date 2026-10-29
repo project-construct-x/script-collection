@@ -29,9 +29,6 @@ the runtimes authenticate with the dev root token.
 - `hashicorp-persistent` requires `vault.server.dev.enabled=false`.
 - `vaultInit.autoInit.enabled=true` is only valid with `hashicorp-persistent`
 and requires `vault.server.dataStorage.enabled=true`.
-- `autoInit` requires a ServiceAccount with `automountServiceAccountToken=true`
-(either `serviceAccount.create=true` + `serviceAccount.automount=true`, or a
-pre-created `serviceAccount.name`).
 - `vaultInit.aes.enabled=true` is rejected — the connector seeds RSA only.
 The `aes` block exists solely to keep the schema uniform across charts.
 
@@ -437,7 +434,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `serviceAccount.create` | bool | `true` | Create a dedicated ServiceAccount for the connector and vault-init job. |
-| `serviceAccount.automount` | bool | `true` | Automatically mount the ServiceAccount token into pods. |
+| `serviceAccount.automount` | bool | `false` | Automatically mount the ServiceAccount token into pods. |
 | `serviceAccount.annotations` | object | `{}` | Annotations added to the ServiceAccount. |
 | `serviceAccount.name` | string | `""` | Override the generated ServiceAccount name. |
 | `serviceAccount.imagePullSecrets` | list | `[]` | Existing image pull secret bound to the service account for private registries. |

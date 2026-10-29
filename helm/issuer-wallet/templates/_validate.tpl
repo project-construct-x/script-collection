@@ -34,14 +34,11 @@ Call via the chart specific entrypoint "issuer-wallet.validate" (_helpers.tpl).
   {{- if and (not $autoInit) (not (include "issuer-wallet.vault.token" $context)) -}}
     {{- fail "vaultInit.mode=hashicorp-persistent without autoInit requires vault.hashicorp.token (or global.vault.token)" -}}
   {{- end -}}
-  {{- /* Validate ServiceAccount with enabled autoInit */ -}}
+  {{- /* Validate necessary values with enabled autoInit */ -}}
   {{- if $autoInit -}}
-    {{- if and (not $context.Values.serviceAccount.create) (not $context.Values.serviceAccount.name) -}}
-      {{- fail "vaultInit.autoInit requires either serviceAccount.create=true or a pre-created serviceAccount.name (autoInit needs a ServiceAccount with automountServiceAccountToken=true)" -}}
-    {{- end -}}
-    {{- /* Validate chart-created SA for automountServiceAccountToken=true */ -}}
-    {{- if and $context.Values.serviceAccount.create (not $context.Values.serviceAccount.automount) -}}
-      {{- fail "vaultInit.autoInit with serviceAccount.create=true requires serviceAccount.automount=true" -}}
+    {{- /* Validate vault-init is set with autoInit */ -}}
+    {{- if not $context.Values.vaultInit.enabled -}}
+      {{- fail "vaultInit.autoInit requires vaultInit.enabled=true (the vault-init job creates the app token Secret)" -}}
     {{- end -}}
     {{- /* Validate name of the keys Secret, must be shared by all charts using the same Vault */ -}}
     {{- if not (include "issuer-wallet.vault.autoInit.keysSecretName" $context) -}}

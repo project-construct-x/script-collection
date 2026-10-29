@@ -40,11 +40,9 @@ spec:
         {{- include "issuer-wallet.labels" . | nindent 8 }}
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: {{ include "issuer-wallet.serviceAccountName" . }}
-{{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
-      # Ensure that SA Token is mounted
-      automountServiceAccountToken: true
-{{- end }}
+      {{- include "issuer-wallet.imagePullSecrets" (dict "context" $) | nindent 6 }}
+      serviceAccountName: {{ include "issuer-wallet.vaultInit.serviceAccountName" . }}
+      automountServiceAccountToken: {{ eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
       containers:
         - name: vault-init
           image: {{ include "issuer-wallet.vaultInit.image" . }}
@@ -89,7 +87,7 @@ spec:
             - name: APP_TOKEN_SECRET_NAME
               value: {{ include "issuer-wallet.appTokenSecretName" . | quote }}
             - name: APP_POLICY_NAME
-              value: "deployment"
+              value: {{ include "issuer-wallet.vault.appPolicyName" . | quote }}
           {{- end }}
           volumeMounts:
             - name: script

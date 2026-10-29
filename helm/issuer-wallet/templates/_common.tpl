@@ -247,3 +247,18 @@ Usage: {{- $annotations := include "issuer-wallet.ingress.annotations" (dict "co
 {{- end -}}
 {{- toYaml $annotations -}}
 {{- end -}}
+
+{{/*
+Defines the name of the ServiceAccount of the vault-init job.
+*/}}
+{{- define "issuer-wallet.vaultInit.serviceAccountName" -}}
+{{- printf "%s-vault-init" (include "issuer-wallet.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Defines the name of the Vault policy of the scoped app token.
+Unique per chart, so charts sharing one Vault do not overwrite each other's policy.
+*/}}
+{{- define "issuer-wallet.vault.appPolicyName" -}}
+{{- printf "%s-deployment" (include "issuer-wallet.fullname" .) -}}
+{{- end -}}

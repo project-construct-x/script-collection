@@ -792,8 +792,8 @@ networkPolicy:
 serviceAccount:
   # -- Specifies whether a service account should be created
   create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  # -- Automatically mount the ServiceAccount's API credentials into the workloads. Not needed by the runtime, the vault-init job uses its own ServiceAccount.
+  automount: false
   # -- Annotations to add to the service account
   annotations: {}
   # -- The name of the service account to use.

@@ -247,3 +247,18 @@ Usage: {{- $annotations := include "conxdc.ingress.annotations" (dict "context" 
 {{- end -}}
 {{- toYaml $annotations -}}
 {{- end -}}
+
+{{/*
+Defines the name of the ServiceAccount of the vault-init job.
+*/}}
+{{- define "conxdc.vaultInit.serviceAccountName" -}}
+{{- printf "%s-vault-init" (include "conxdc.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Defines the name of the Vault policy of the scoped app token.
+Unique per chart, so charts sharing one Vault do not overwrite each other's policy.
+*/}}
+{{- define "conxdc.vault.appPolicyName" -}}
+{{- printf "%s-deployment" (include "conxdc.fullname" .) -}}
+{{- end -}}

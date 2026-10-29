@@ -18,41 +18,56 @@
 #################################################################################
 
 
-{{- if and (eq (include "issuer-wallet.vaultInit.jobEnabled" .) "true") (eq (include "issuer-wallet.vault.autoInit.enabled" .) "true") -}}
-{{- $fullName := include "issuer-wallet.fullname" . }}
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+{{- if eq (include "issuer-wallet.vaultInit.jobEnabled" .) "true" }}
+{{- $saName := include "issuer-wallet.vaultInit.serviceAccountName" . }}
+---
+# Dedicated ServiceAccount of the vault-init job.
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: {{ $fullName }}-vault-init
+  name: {{ $saName }}
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "issuer-wallet.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/hook-delete-policy": before-hook-creation
+automountServiceAccountToken: false
+
+{{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
+---
+# Role and RoleBinding is only rendered with autoInit
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $saName }}
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "issuer-wallet.labels" . | nindent 4 }}
 rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "create", "patch"]
+  # can create secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  # can read and update Vault specific secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - {{ include "issuer-wallet.vault.autoInit.keysSecretName" . | quote }}
+      - {{ include "issuer-wallet.appTokenSecretName" . | quote }}
+    verbs: ["get", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ $fullName }}-vault-init
+  name: {{ $saName }}
   namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "issuer-wallet.labels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/hook-delete-policy": before-hook-creation
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ $fullName }}-vault-init
+  name: {{ $saName }}
 subjects:
-- kind: ServiceAccount
-  name: {{ include "issuer-wallet.serviceAccountName" . }}
-  namespace: {{ .Release.Namespace | default "default" | quote }}
+  - kind: ServiceAccount
+    name: {{ $saName }}
+    namespace: {{ .Release.Namespace | default "default" | quote }}
+{{- end }}
 {{- end }}
