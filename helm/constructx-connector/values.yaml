@@ -806,3 +806,8 @@ serviceAccount:
 tests:
   # -- Configure the hook-delete-policy for Helm tests
   hookDeletePolicy: before-hook-creation,hook-succeeded
+  image:
+    # -- Image of the Helm test pods, must provide sh and curl
+    repository: "curlimages/curl"
+    # -- Tag of the Helm test image
+    tag: "8.10.1"

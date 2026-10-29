@@ -444,6 +444,8 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `tests.hookDeletePolicy` | string | `before-hook-creation,hook-succeeded` | Helm test hook delete policy. |
+| `tests.image.repository` | string | `"curlimages/curl"` | Image of the Helm test pods, must provide sh and curl |
+| `tests.image.tag` | string | `"8.10.1"` | Tag of the Helm test image |
 
 ## Sources
 
