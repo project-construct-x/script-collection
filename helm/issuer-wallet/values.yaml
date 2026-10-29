@@ -284,13 +284,13 @@ wallet:
   autoscaling:
     # -- Enables [horizontal pod autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
     enabled: false
-    # -- Minimal replicas if resource consumption falls below resource threshholds
+    # -- Minimal replicas if resource consumption falls below resource thresholds
     minReplicas: 1
-    # -- Maximum replicas if resource consumption exceeds resource threshholds
+    # -- Maximum replicas if resource consumption exceeds resource thresholds
     maxReplicas: 100
-    # -- targetAverageUtilization of cpu provided to a pod
+    # -- Target average CPU utilization in percent of the requested CPU (resources.requests.cpu). Empty disables the metric.
     targetCPUUtilizationPercentage: 80
-    # -- targetAverageUtilization of memory provided to a pod
+    # -- Target average memory utilization in percent of the requested memory (resources.requests.memory). Empty disables the metric.
     targetMemoryUtilizationPercentage: 80
 
   # [node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) to constrain pods to nodes

@@ -21,12 +21,13 @@
 #################################################################################
 
 
-{{- if .Values.controlplane.autoscaling.enabled }}
+{{- if .Values.dataplane.autoscaling.enabled }}
 ---
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "conxdc.fullname" . }}-dataplane
+  namespace: {{ .Release.Namespace | default "default" | quote }}
   labels:
     {{- include "conxdc.dataplane.labels" . | nindent 4 }}
 spec:
@@ -41,12 +42,16 @@ spec:
     - type: Resource
       resource:
         name: cpu
-        targetAverageUtilization: {{ .Values.dataplane.autoscaling.targetCPUUtilizationPercentage }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.dataplane.autoscaling.targetCPUUtilizationPercentage }}
     {{- end }}
     {{- if .Values.dataplane.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
-        targetAverageUtilization: {{ .Values.dataplane.autoscaling.targetMemoryUtilizationPercentage }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.dataplane.autoscaling.targetMemoryUtilizationPercentage }}
     {{- end }}
 {{- end }}
