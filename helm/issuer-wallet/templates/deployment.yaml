@@ -171,15 +171,13 @@ spec:
             - secretRef:
                 name: {{ $fullName }}-superuser-credentials
           {{- end }}
-          {{- if and (or .Values.wallet.envSecretNames .Values.wallet.envConfigMapNames) (or (gt (len .Values.wallet.envSecretNames) 0) (gt (len .Values.wallet.envConfigMapNames) 0)) }}
           {{- range $value := .Values.wallet.envSecretNames }}
             - secretRef:
                 name: {{ $value | quote }}
           {{- end }}
           {{- range $value := .Values.wallet.envConfigMapNames }}
             - configMapRef:
-                name: {{ printf "%s-%s" $fullName $value | quote }}
-          {{- end }}
+                name: {{ $value | quote }}
           {{- end }}
           volumeMounts:
             {{- with .Values.wallet.volumeMounts }}

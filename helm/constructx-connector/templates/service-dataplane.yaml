@@ -1,4 +1,5 @@
 #################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
 #  Copyright (c) 2023,2024 ZF Friedrichshafen AG
 #  Copyright (c) 2023 Mercedes-Benz Tech Innovation GmbH
 #  Copyright (c) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
@@ -38,26 +39,11 @@ metadata:
 spec:
   type: {{ .Values.dataplane.service.type }}
   ports:
-    - port: {{ .Values.dataplane.endpoints.default.port }}
-      targetPort: default
+  {{- range $name, $endpoint := .Values.dataplane.endpoints }}
+    - port: {{ $endpoint.port }}
+      targetPort: {{ $name }}
       protocol: TCP
-      name: default
-    - port: {{ .Values.dataplane.endpoints.control.port }}
-      targetPort: control
-      protocol: TCP
-      name: control
-    - port: {{ .Values.dataplane.endpoints.public.port }}
-      targetPort: public
-      protocol: TCP
-      name: public
-    - port: {{ .Values.dataplane.endpoints.metrics.port }}
-      targetPort: metrics
-      protocol: TCP
-      name: metrics
-    - port: {{ .Values.dataplane.endpoints.proxy.port }}
-      targetPort: proxy
-      protocol: TCP
-      name: proxy
-
+      name: {{ $name }}
+  {{- end }}
   selector:
     {{- include "conxdc.dataplane.selectorLabels" . | nindent 4 }}

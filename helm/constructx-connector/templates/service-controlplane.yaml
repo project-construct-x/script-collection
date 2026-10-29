@@ -1,4 +1,5 @@
 #################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
 #  Copyright (c) 2023.2024 ZF Friedrichshafen AG
 #  Copyright (c) 2023 Mercedes-Benz Tech Innovation GmbH
 #  Copyright (c) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
@@ -38,25 +39,11 @@ metadata:
 spec:
   type: {{ .Values.controlplane.service.type }}
   ports:
-    - port: {{ .Values.controlplane.endpoints.default.port }}
-      targetPort: default
+  {{- range $name, $endpoint := .Values.controlplane.endpoints }}
+    - port: {{ $endpoint.port }}
+      targetPort: {{ $name }}
       protocol: TCP
-      name: default
-    - port: {{ .Values.controlplane.endpoints.control.port }}
-      targetPort: control
-      protocol: TCP
-      name: control
-    - port: {{ .Values.controlplane.endpoints.management.port }}
-      targetPort: management
-      protocol: TCP
-      name: management
-    - port: {{ .Values.controlplane.endpoints.protocol.port }}
-      targetPort: protocol
-      protocol: TCP
-      name: protocol
-    - port: {{ .Values.controlplane.endpoints.metrics.port }}
-      targetPort: metrics
-      protocol: TCP
-      name: metrics
+      name: {{ $name }}
+  {{- end }}
   selector:
     {{- include "conxdc.controlplane.selectorLabels" . | nindent 4 }}
