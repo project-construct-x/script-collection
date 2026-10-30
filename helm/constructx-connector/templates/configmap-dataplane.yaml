@@ -38,8 +38,6 @@ data:
   #######
   WEB_HTTP_PORT: {{ .Values.dataplane.endpoints.default.port | quote }}
   WEB_HTTP_PATH: {{ .Values.dataplane.endpoints.default.path | quote }}
-  WEB_HTTP_MANAGEMENT_PORT: {{ .Values.dataplane.endpoints.management.port | quote }}
-  WEB_HTTP_MANAGEMENT_PATH: {{ .Values.dataplane.endpoints.management.path | quote }}
   WEB_HTTP_CONTROL_PORT: {{ .Values.dataplane.endpoints.control.port | quote }}
   WEB_HTTP_CONTROL_PATH: {{ .Values.dataplane.endpoints.control.path | quote }}
   WEB_HTTP_PUBLIC_PORT: {{ .Values.dataplane.endpoints.public.port | quote }}

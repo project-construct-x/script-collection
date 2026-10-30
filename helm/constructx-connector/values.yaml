@@ -187,7 +187,6 @@ controlplane:
       authKey: "password"
       # -- if the JWKS url is set, the DelegatedAuth service will be engaged
       jwksUrl:
-
     # -- control api, used for internal control calls. can be added to the internal ingress, but should probably not
     control:
       # -- port for incoming api calls
@@ -200,17 +199,11 @@ controlplane:
       port: 9020
       # -- path for incoming api calls
       path: /dsp
-    # -- validation api
-    validation:
-      # -- port for incoming api calls
-      port: 9030
-      # -- path for incoming api calls
-      path: /validation
-    # -- metrics api, used for application metrics, must not be internet facing
+    # -- metrics api, served by the OpenTelemetry agent's prometheus exporter (enable it via controlplane.opentelemetry). Must not be internet facing
     metrics:
-      # -- port for incoming api calls
+      # -- port of the prometheus exporter, rendered as otel.exporter.prometheus.port unless set in controlplane.opentelemetry
       port: 9090
-      # -- path for incoming api calls
+      # -- path for the ingress only, the exporter serves /metrics
       path: /metrics
 
   # -- configuration for policy engine
@@ -321,7 +314,6 @@ controlplane:
       endpoints:
         - management
         - control
-        - validation
         - metrics
       # -- Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use
       className: ""
@@ -467,25 +459,11 @@ dataplane:
       port: 9550
       # -- path for incoming api calls
       path: /control
-    # -- data management api
-    management:
-      # -- port for incoming api calls
-      port: 9510
-      # -- path for incoming api calls
-      path: /management
-    # -- proxy api for consumer data transfer
-    proxy:
-      # -- port for incoming api calls
-      port: 9511
-      # -- path for incoming api calls
-      path: /proxy
-      # -- authentication key, must be attached to each request as `X-Api-Key` header
-      authKey: "password"
-    # -- metrics api, used for application metrics, must not be internet facing
+    # -- metrics api, served by the OpenTelemetry agent's prometheus exporter (enable it via dataplane.opentelemetry). Must not be internet facing
     metrics:
-      # -- port for incoming api calls
+      # -- port of the prometheus exporter, rendered as otel.exporter.prometheus.port unless set in dataplane.opentelemetry
       port: 9090
-      # -- path for incoming api calls
+      # -- path for the ingress only, the exporter serves /metrics
       path: /metrics
 
   token:
@@ -573,7 +551,6 @@ dataplane:
       # -- EDC endpoints exposed by this ingress resource
       endpoints:
         - public
-        - proxy
       # -- Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use
       className: ""
       # -- TLS [tls class](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) applied to the ingress resource
@@ -596,7 +573,6 @@ dataplane:
       annotations: {}
       # -- EDC endpoints exposed by this ingress resource
       endpoints:
-        - management
         - control
         - metrics
       # -- Defines the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class)  to use

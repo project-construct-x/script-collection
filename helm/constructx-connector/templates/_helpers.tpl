@@ -136,13 +136,6 @@ Control DSP URL
 {{- end }}
 
 {{/*
-Validation URL
-*/}}
-{{- define "conxdc.controlplane.url.validation" -}}
-{{- printf "%s/token" ( include "conxdc.controlplane.url.control" $ ) -}}
-{{- end }}
-
-{{/*
 Control Plane Control URL
 */}}
 {{- define "conxdc.controlplane.url.control" -}}

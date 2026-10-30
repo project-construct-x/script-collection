@@ -44,8 +44,6 @@ data:
   WEB_HTTP_CONTROL_PATH: {{ .Values.controlplane.endpoints.control.path | quote }}
   WEB_HTTP_PROTOCOL_PORT: {{ .Values.controlplane.endpoints.protocol.port | quote }}
   WEB_HTTP_PROTOCOL_PATH: {{ .Values.controlplane.endpoints.protocol.path | quote }}
-  WEB_HTTP_VALIDATION_PORT: {{ .Values.controlplane.endpoints.validation.port | quote }}
-  WEB_HTTP_VALIDATION_PATH: {{ .Values.controlplane.endpoints.validation.path | quote }}
 
   ###########
   # General #

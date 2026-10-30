@@ -243,8 +243,7 @@ Each endpoint creates a Kubernetes Service port and injects the corresponding `W
 | `controlplane.endpoints.management.jwksUrl` | — | `nil` | If set, the DelegatedAuth service is engaged. |
 | `controlplane.endpoints.control` | `9050` | `/control` | Control API for internal control calls. |
 | `controlplane.endpoints.protocol` | `9020` | `/dsp` | DSP API for inter-connector communication. Must be internet-facing. |
-| `controlplane.endpoints.validation` | `9030` | `/validation` | Validation API. |
-| `controlplane.endpoints.metrics` | `9090` | `/metrics` | Metrics API for application metrics. Must not be internet-facing. |
+| `controlplane.endpoints.metrics` | `9090` | `/metrics` | Prometheus endpoint of the OpenTelemetry agent. The port is rendered as `otel.exporter.prometheus.port` unless set in `controlplane.opentelemetry`. The path is used for the ingress only. Must not be internet-facing. |
 
 ### `controlplane.livenessProbe` / `controlplane.readinessProbe`
 
@@ -344,10 +343,7 @@ Each endpoint creates a Kubernetes Service port and injects the corresponding `W
 | `dataplane.endpoints.default` | `8181` | `/api` | Default API for health checks. Must not be added to any ingress. |
 | `dataplane.endpoints.public` | `9500` | `/public` | Public endpoint where data can be fetched if HttpPull was used. Must be internet-facing. |
 | `dataplane.endpoints.control` | `9550` | `/control` | Control API for internal control calls. |
-| `dataplane.endpoints.management` | `9510` | `/management` | Data management API. |
-| `dataplane.endpoints.proxy` | `9511` | `/proxy` | Proxy API for consumer data transfer. |
-| `dataplane.endpoints.proxy.authKey` | — | `password` | Authentication key attached to each request as the `X-Api-Key` header. |
-| `dataplane.endpoints.metrics` | `9090` | `/metrics` | Metrics API for application metrics. Must not be internet-facing. |
+| `dataplane.endpoints.metrics` | `9090` | `/metrics` | Prometheus endpoint of the OpenTelemetry agent. The port is rendered as `otel.exporter.prometheus.port` unless set in `dataplane.opentelemetry`. The path is used for the ingress only. Must not be internet-facing. |
 
 ### `dataplane.livenessProbe` / `dataplane.readinessProbe`
 

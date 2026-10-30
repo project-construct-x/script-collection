@@ -216,8 +216,3 @@
   ⚠ WARNING: The control plane management API key is the default ("password").
              Change controlplane.endpoints.management.authKey before production use.
 {{- end }}
-{{- if eq (default "password" .Values.dataplane.endpoints.proxy.authKey) "password" }}
-
-  ⚠ WARNING: The data plane proxy API key is the default ("password").
-             Change dataplane.endpoints.proxy.authKey before production use.
-{{- end }}

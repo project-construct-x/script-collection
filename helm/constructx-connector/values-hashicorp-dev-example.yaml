@@ -85,7 +85,7 @@ controlplane:
     - enabled: false
       annotations:
         external-dns.alpha.kubernetes.io/ttl: "300"
-      endpoints: [management, control, validation, metrics]
+      endpoints: [management, control, metrics]
       tls:
         enabled: true
         secretName: "user-edc-cp-int-tls"
@@ -96,7 +96,7 @@ dataplane:
     - enabled: true
       annotations:
         external-dns.alpha.kubernetes.io/ttl: "300"
-      endpoints: [public, proxy]
+      endpoints: [public]
       tls:
         enabled: true
         secretName: "user-edc-dp-tls"
@@ -104,7 +104,7 @@ dataplane:
     - enabled: false
       annotations:
         external-dns.alpha.kubernetes.io/ttl: "300"
-      endpoints: [management, control, metrics]
+      endpoints: [control, metrics]
       tls:
         enabled: true
         secretName: "user-edc-dp-int-tls"
