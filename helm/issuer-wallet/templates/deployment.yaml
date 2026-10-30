@@ -133,15 +133,17 @@ spec:
           resources:
             {{- toYaml .Values.wallet.resources | nindent 12 }}
           env:
+          # JAVA_TOOL_OPTIONS is built from useSVE and debug independently, rendered only if not empty
+          {{- $javaOpts := list }}
+          {{- if .Values.wallet.useSVE }}
+          {{- $javaOpts = append $javaOpts "-XX:UseSVE=0" }}
+          {{- end }}
           {{- if .Values.wallet.debug.enabled }}
+          {{- $javaOpts = append $javaOpts (printf "-agentlib:jdwp=transport=dt_socket,server=y,suspend=%s,address=%v" (ternary "y" "n" .Values.wallet.debug.suspendOnStart) .Values.wallet.debug.port) }}
+          {{- end }}
+          {{- if $javaOpts }}
             - name: "JAVA_TOOL_OPTIONS"
-            {{- if .Values.wallet.debug.suspendOnStart }}
-              value: >-
-                {{ printf "%s-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=%v"  (ternary "-XX:UseSVE=0 " "" .Values.wallet.useSVE) .Values.wallet.debug.port}}
-            {{- else }}
-              value: >-
-                {{ printf "%s-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=%v"  (ternary "-XX:UseSVE=0 " "" .Values.wallet.useSVE) .Values.wallet.debug.port}}
-            {{- end }}
+              value: {{ join " " $javaOpts | quote }}
           {{- end }}
           {{- range $key, $value := .Values.wallet.envValueFrom }}
             - name: {{ $key | quote }}

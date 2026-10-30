@@ -147,15 +147,17 @@ spec:
           resources:
             {{- toYaml .Values.controlplane.resources | nindent 12 }}
           env:
-          {{- if .Values.controlplane.debug.enabled }}
-            - name: "JAVA_TOOL_OPTIONS"
-          {{- if .Values.controlplane.debug.suspendOnStart }}
-              value: >-
-                {{ printf "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=%v" .Values.controlplane.debug.port }}
-          {{- else }}
-              value: >-
-                {{ printf "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=%v" .Values.controlplane.debug.port }}
+          # JAVA_TOOL_OPTIONS is built from useSVE and debug independently, rendered only if not empty
+          {{- $javaOpts := list }}
+          {{- if .Values.controlplane.useSVE }}
+          {{- $javaOpts = append $javaOpts "-XX:UseSVE=0" }}
           {{- end }}
+          {{- if .Values.controlplane.debug.enabled }}
+          {{- $javaOpts = append $javaOpts (printf "-agentlib:jdwp=transport=dt_socket,server=y,suspend=%s,address=%v" (ternary "y" "n" .Values.controlplane.debug.suspendOnStart) .Values.controlplane.debug.port) }}
+          {{- end }}
+          {{- if $javaOpts }}
+            - name: "JAVA_TOOL_OPTIONS"
+              value: {{ join " " $javaOpts | quote }}
           {{- end }}
           {{- if eq (include "conxdc.vault.autoInit.enabled" .) "true" }}
             # Overrides Vault Token from Values File with generated Token from Vault Initialization

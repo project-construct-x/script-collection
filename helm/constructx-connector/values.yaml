@@ -128,6 +128,8 @@ controlplane:
   imagePullSecrets:
     - name: ghcr-creds
   initContainers: []
+  # -- Adds -XX:UseSVE=0 to JAVA_TOOL_OPTIONS. Enable on SVE-capable nodes if the JVM crashes with illegal instruction errors.
+  useSVE: false
   debug:
     # -- Enables java debugging mode.
     enabled: false
@@ -396,6 +398,8 @@ dataplane:
   imagePullSecrets:
     - name: ghcr-creds
   initContainers: []
+  # -- Adds -XX:UseSVE=0 to JAVA_TOOL_OPTIONS. Enable on SVE-capable nodes if the JVM crashes with illegal instruction errors.
+  useSVE: false
   debug:
     # -- Enables java debugging mode.
     enabled: false

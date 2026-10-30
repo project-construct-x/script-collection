@@ -216,7 +216,7 @@ Usage inside env: {{- include "wallet.datasource.passwordEnv" . | nindent 12 }}
 Defines imagePullSecrets: global + local (+ optional extra list), as {name: ...}, without duplicates.
 Renders the complete "imagePullSecrets:" block or nothing.
 Usage: {{- include "wallet.imagePullSecrets" (dict "context" $) | nindent 6 }}
-       {{- include "wallet.imagePullSecrets" (dict "context" $ "extra" .Values.controlplane.imagePullSecrets) | nindent 6 }}
+       {{- include "wallet.imagePullSecrets" (dict "context" $ "extra" .Values.wallet.imagePullSecrets) | nindent 6 }}
 */}}
 {{- define "wallet.imagePullSecrets" -}}
 {{- $global := .context.Values.global | default dict -}}
