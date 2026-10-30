@@ -1,0 +1,98 @@
+{{/*
+#################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
+#
+#  See the NOTICE file(s) distributed with this work for additional
+#  information regarding copyright ownership.
+#
+#  This program and the accompanying materials are made available under the
+#  terms of the Apache License, Version 2.0 which is available at
+#  https://www.apache.org/licenses/LICENSE-2.0.
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.
+#
+#  SPDX-License-Identifier: Apache-2.0
+#################################################################################
+*/}}
+
+{{/*
+Validates vaultInit.mode against allowed values and against the matching Vault sub-chart values.
+Values are read via the helpers in _common.tpl, i.e. global before local.
+vault.server.* is only checked if the Vault is installed by this chart (install.vault=true).
+Call via the chart specific entrypoint "conxdc.validate" (_helpers.tpl).
+*/}}
+{{- define "conxdc.validateVaultInit" -}}
+{{- $context := .context -}}
+{{- $allowed := .allowed -}}
+{{- $mode := include "conxdc.vault.mode" $context -}}
+{{- $autoInit := eq (include "conxdc.vault.autoInit.enabled" $context) "true" -}}
+
+{{- /* 1. check if mode is in allowed list */ -}}
+{{- if not (has $mode $allowed) -}}
+  {{- fail (printf "vaultInit.mode must be one of %v, got '%s'" $allowed $mode) -}}
+{{- end -}}
+
+{{- /* 2. check values for inconsistency with given modes */ -}}
+{{- if eq $mode "hashicorp-dev" -}}
+  {{- if and $context.Values.install.vault (not $context.Values.vault.server.dev.enabled) -}}
+    {{- fail "vaultInit.mode=hashicorp-dev requires vault.server.dev.enabled=true" -}}
+  {{- end -}}
+  {{- if and $context.Values.install.vault (ne (include "conxdc.vault.token" $context) (toString $context.Values.vault.server.dev.devRootToken)) -}}
+    {{- fail "vaultInit.mode=hashicorp-dev requires vault.hashicorp.token to match vault.server.dev.devRootToken" -}}
+  {{- end -}}
+{{- else if eq $mode "hashicorp-persistent" -}}
+  {{- if and $context.Values.install.vault $context.Values.vault.server.dev.enabled -}}
+    {{- fail "vaultInit.mode=hashicorp-persistent requires vault.server.dev.enabled=false" -}}
+  {{- end -}}
+  {{- if and $context.Values.install.vault $autoInit (not $context.Values.vault.server.dataStorage.enabled) -}}
+    {{- fail "autoInit with hashicorp-persistent requires vault.server.dataStorage.enabled=true" -}}
+  {{- end -}}
+  {{- /* Validate token without autoInit */ -}}
+  {{- if and (not $autoInit) (not (include "conxdc.vault.token" $context)) -}}
+    {{- fail "vaultInit.mode=hashicorp-persistent without autoInit requires vault.hashicorp.token (or global.vault.token)" -}}
+  {{- end -}}
+  {{- /* Validate necessary values with enabled autoInit */ -}}
+  {{- if $autoInit -}}
+    {{- /* Validate vault-init is set with autoInit */ -}}
+    {{- if not $context.Values.vaultInit.enabled -}}
+      {{- fail "vaultInit.autoInit requires vaultInit.enabled=true (the vault-init job creates the app token Secret)" -}}
+    {{- end -}}
+    {{- /* Validate name of the keys Secret, must be shared by all charts using the same Vault */ -}}
+    {{- if not (include "conxdc.vault.autoInit.keysSecretName" $context) -}}
+      {{- fail "vaultInit.autoInit requires vaultInit.autoInit.keysSecretName (or global.vault.autoInit.keysSecretName)" -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* 3. check whether persistent mode is set with autoInit */ -}}
+{{- if and $autoInit (ne $mode "hashicorp-persistent") -}}
+  {{- fail "vaultInit.autoInit.enabled=true is only valid with vaultInit.mode=hashicorp-persistent" -}}
+{{- end -}}
+
+{{- /* 4. check secret path format, the KV mount is derived from it */ -}}
+{{- if eq (include "conxdc.usesHashicorpVault" $context) "true" -}}
+  {{- $secretPath := include "conxdc.vault.secretPath" $context -}}
+  {{- if not (regexMatch "^/v1/[^/]+$" $secretPath) -}}
+    {{- fail (printf "vault.hashicorp.paths.secret (or global.vault.secretPath) must have the form /v1/<mount>, got '%s'" $secretPath) -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validates PostgreSQL values.
+*/}}
+{{- define "conxdc.validatePostgres" -}}
+{{- $global := .Values.global | default dict -}}
+{{- /* 1. database name is required whenever the JDBC URL is derived */ -}}
+{{- if and (not .Values.postgresql.auth.database) (or (not .Values.postgresql.jdbcUrl) (dig "postgresql" "host" "" $global)) -}}
+  {{- fail "postgresql.auth.database is required (the JDBC URL is derived from it)" -}}
+{{- end -}}
+{{- /* 2. credentials are required for a (bundled or external) PostgreSQL */ -}}
+{{- if and (not .Values.postgresql.auth.existingSecret) (not .Values.postgresql.auth.password) -}}
+  {{- fail "postgresql.auth.password or postgresql.auth.existingSecret is required" -}}
+{{- end -}}
+{{- end -}}
