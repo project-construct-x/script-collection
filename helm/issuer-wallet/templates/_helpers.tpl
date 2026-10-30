@@ -133,7 +133,7 @@ Defines if Hashicorp Vault is used in general
 Defines if the psql-vault AES secret rendering does run
 */}}
 {{- define "issuer-wallet.vaultInit.sqlAesEnabled" -}}
-{{- and .Values.vaultInit.enabled (eq (include "issuer-wallet.vault.mode" .) "postgres") -}}
+{{- and .Values.vaultInit.enabled .Values.vaultInit.aes.enabled (eq (include "issuer-wallet.vault.mode" .) "postgres") -}}
 {{- end -}}
 
 {{/*
@@ -192,8 +192,16 @@ vaultInit.mode=postgres only exists in this chart, so its check lives here and n
 {{- define "issuer-wallet.validate" -}}
 {{- include "issuer-wallet.validateVaultInit" (dict "context" . "allowed" (list "hashicorp-dev" "hashicorp-persistent" "postgres")) -}}
 {{- /* check values for inconsistency with mode postgres */ -}}
-{{- if and (eq (include "issuer-wallet.vault.mode" .) "postgres") .Values.install.vault -}}
-  {{- fail "vaultInit.mode=postgres requires install.vault=false" -}}
+{{- if eq (include "issuer-wallet.vault.mode" .) "postgres" -}}
+  {{- if .Values.install.vault -}}
+    {{- fail "vaultInit.mode=postgres requires install.vault=false" -}}
+  {{- end -}}
+  {{- if not .Values.vaultInit.enabled -}}
+    {{- fail "vaultInit.mode=postgres requires vaultInit.enabled=true (creates the AES key of the SQL vault)" -}}
+  {{- end -}}
+  {{- if not .Values.vaultInit.aes.enabled -}}
+   {{- fail "vaultInit.mode=postgres requires vaultInit.aes.enabled=true (creates the AES key of the SQL vault)" -}}
+  {{- end -}}
 {{- end -}}
 {{- include "issuer-wallet.validatePostgres" . -}}
 {{- /* check that every enabled ingress resolves to a host */ -}}

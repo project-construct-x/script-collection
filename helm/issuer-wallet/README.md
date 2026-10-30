@@ -30,7 +30,7 @@ the runtimes authenticate with the dev root token.
 - `hashicorp-persistent` requires `vault.server.dev.enabled: false`.
 - `vaultInit.autoInit.enabled: true` is valid only with `hashicorp-persistent` and
   requires `vault.server.dataStorage.enabled: true`.
-- `postgres` requires `install.vault: false`.
+- `postgres` requires `install.vault: false`, `vaultInit.enabled: true` and `vaultInit.aes.enabled: true`.
 - `vaultInit.rsa.enabled=true` is rejected — the wallet seeds AES only.
 The `rsa` block exists solely to keep the schema uniform across charts..
 
