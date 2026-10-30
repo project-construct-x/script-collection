@@ -364,6 +364,11 @@ postgresql:
     username: "user"
     # Password for the PostgreSQL user. Change before production use.
     password: "password"
+    # Existing Secret holding the password of auth.username. Used by the bundled PostgreSQL and by the runtime instead of auth.password
+    existingSecret: ""
+    secretKeys:
+      # Key of the password in auth.existingSecret. The name is defined by the PostgreSQL chart
+      adminPasswordKey: "postgres-password"
   persistence:
     # Persist data across pod restarts.
     enabled: true

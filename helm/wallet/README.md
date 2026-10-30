@@ -268,6 +268,8 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `postgresql.auth.database` | string | `wallet` | Database name created on first start. |
 | `postgresql.auth.username` | string | `user` | Database user the wallet connects as. |
 | `postgresql.auth.password` | string | `password` | Database password. **Change before production use.** |
+| `postgresql.auth.existingSecret` | string | `""` | Existing Secret holding the password of `postgresql.auth.username`. Used by the bundled PostgreSQL and by the runtime (`secretKeyRef`) instead of `postgresql.auth.password`. |
+| `postgresql.auth.secretKeys.adminPasswordKey` | string | `postgres-password` | Key of the password in `postgresql.auth.existingSecret`. |
 | `postgresql.persistence.enabled` | bool | `true` | Persist primary node data. Disable only for throwaway test environments. |
 | `postgresql.persistence.size` | string | `10Gi` | Size of allocated Persistent Volume. |
 | `postgresql.persistence.storageClass` | string | `""` | Storage Class of used Storage Provisioner. |

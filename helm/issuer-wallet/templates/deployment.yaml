@@ -160,6 +160,7 @@ spec:
                   name: {{ include "issuer-wallet.appTokenSecretName" . }}
                   key: EDC_VAULT_HASHICORP_TOKEN
           {{- end }}
+          {{- include "issuer-wallet.datasource.passwordEnv" . | nindent 12 }}
           envFrom:
             - configMapRef:
                 name: {{ $fullName }}-config

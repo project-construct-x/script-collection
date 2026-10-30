@@ -91,8 +91,8 @@ Validates PostgreSQL values.
 {{- if and (not .Values.postgresql.auth.database) (or (not .Values.postgresql.jdbcUrl) (dig "postgresql" "host" "" $global)) -}}
   {{- fail "postgresql.auth.database is required (the JDBC URL is derived from it)" -}}
 {{- end -}}
-{{- /* 2. credentials are required for a PostgreSQL installed by this chart */ -}}
-{{- if and .Values.install.postgresql (not .Values.postgresql.auth.existingSecret) (not .Values.postgresql.auth.password) -}}
-  {{- fail "install.postgresql=true requires postgresql.auth.password or postgresql.auth.existingSecret" -}}
+{{- /* 2. credentials are required for a (bundled or external) PostgreSQL */ -}}
+{{- if and (not .Values.postgresql.auth.existingSecret) (not .Values.postgresql.auth.password) -}}
+  {{- fail "postgresql.auth.password or postgresql.auth.existingSecret is required" -}}
 {{- end -}}
 {{- end -}}

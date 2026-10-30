@@ -199,6 +199,20 @@ Consumed by the deployment and, in an umbrella, by the shared PostgreSQL (custom
 {{- end -}}
 
 {{/*
+Renders EDC_DATASOURCE_DEFAULT_PASSWORD from postgresql.auth.existingSecret if present.
+Usage inside env: {{- include "conxdc.datasource.passwordEnv" . | nindent 12 }}
+*/}}
+{{- define "conxdc.datasource.passwordEnv" -}}
+{{- with .Values.postgresql.auth.existingSecret }}
+- name: EDC_DATASOURCE_DEFAULT_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ tpl . $ | quote }}
+      key: {{ dig "secretKeys" "adminPasswordKey" "postgres-password" $.Values.postgresql.auth | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Defines imagePullSecrets: global + local (+ optional extra list), as {name: ...}, without duplicates.
 Renders the complete "imagePullSecrets:" block or nothing.
 Usage: {{- include "conxdc.imagePullSecrets" (dict "context" $) | nindent 6 }}

@@ -395,6 +395,8 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | `postgresql.auth.database` | string | `edc` | Database name created on first start. Must match the path in `postgresql.jdbcUrl`. |
 | `postgresql.auth.username` | string | `user` | Database user the connector connects as. |
 | `postgresql.auth.password` | string | `password` | Database password. **Change before production use.** |
+| `postgresql.auth.existingSecret` | string | `""` | Existing Secret holding the password of `postgresql.auth.username`. Used by the bundled PostgreSQL and by the runtime (`secretKeyRef`) instead of `postgresql.auth.password`. |
+| `postgresql.auth.secretKeys.adminPasswordKey` | string | `postgres-password` | Key of the password in `postgresql.auth.existingSecret`. |
 | `postgresql.persistence.enabled` | bool | `true` | Persist data across pod restarts. |
 | `postgresql.persistence.size` | string | `10Gi` | Size of the allocated Persistent Volume. |
 | `postgresql.persistence.storageClass` | string | `""` | Storage Class of the used Storage Provisioner. |
