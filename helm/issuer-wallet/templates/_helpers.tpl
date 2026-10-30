@@ -157,6 +157,17 @@ Not to be confused with the in-cluster hostname (EDC_HOSTNAME), see issuer-walle
 {{- end -}}
 
 {{/*
+Defines the scheme of public URLs (statuslist callback), derived from wallet.ingresses[0].
+  ingresses[0] enabled -> https if tls.enabled, otherwise http
+  ingresses[0] disabled -> https (TLS is expected to be terminated by an external ingress or gateway)
+*/}}
+{{- define "issuer-wallet.publicScheme" -}}
+{{- $ingress := .Values.wallet.ingresses | default list | first | default dict -}}
+{{- $tls := or (not $ingress.enabled) (dig "tls" "enabled" false $ingress) -}}
+{{- ternary "https" "http" $tls -}}
+{{- end -}}
+
+{{/*
 Defines the in-cluster hostname of the issuer-wallet, used for EDC_HOSTNAME.
 It always equals the name of the service (<fullname>), therefore it is not configurable.
 */}}

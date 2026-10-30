@@ -27,7 +27,7 @@
 
 {{- $defaultStlCallback := "" }}
 {{- with include "issuer-wallet.publicHostname" . }}
-{{- $defaultStlCallback = printf "https://%s%s" . $.Values.wallet.endpoints.statuslist.path }}
+{{- $defaultStlCallback = printf "%s://%s%s" (include "issuer-wallet.publicScheme" $) . $.Values.wallet.endpoints.statuslist.path }}
 {{- end }}
 
 apiVersion: v1
