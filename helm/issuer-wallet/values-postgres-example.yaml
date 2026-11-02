@@ -49,7 +49,7 @@ wallet:
     - enabled: true
       hostname: "issuer.staging.construct-x.net"
       className: "nginx"
-      endpoints: [issuance, sts, did, statuslist]
+      endpoints: [issuance, did, statuslist]
       tls:
         enabled: true
         secretName: "issuer-wallet-tls"

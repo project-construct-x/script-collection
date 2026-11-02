@@ -51,8 +51,6 @@ data:
   WEB_HTTP_ISSUERADMIN_PATH: {{ .Values.wallet.endpoints.issueradmin.path | quote }}
   WEB_HTTP_DID_PORT: {{ .Values.wallet.endpoints.did.port | quote }}
   WEB_HTTP_DID_PATH: {{ .Values.wallet.endpoints.did.path | quote }}
-  WEB_HTTP_STS_PORT: {{ .Values.wallet.endpoints.sts.port | quote}}
-  WEB_HTTP_STS_PATH: {{ .Values.wallet.endpoints.sts.path | quote}}
   WEB_HTTP_STATUSLIST_PORT: {{ .Values.wallet.endpoints.statuslist.port | quote }}
   WEB_HTTP_STATUSLIST_PATH: {{ .Values.wallet.endpoints.statuslist.path | quote }}
   WEB_HTTP_ISSUANCE_PORT: {{ .Values.wallet.endpoints.issuance.port | quote }}

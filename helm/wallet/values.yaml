@@ -156,7 +156,7 @@ wallet:
       path: /api/identity
       # -- authentication key, must be attached to each 'X-Api-Key' request header
       authKeyAlias: "sup3r$3cr3t"
-    # -- DCP Presentation API endpoint
+    # -- DCP Presentation and Storage API. Must be internet facing
     credentials:
       # -- port for incoming api calls
       port: 13131
@@ -168,7 +168,7 @@ wallet:
       port: 80
       # -- path for incoming api calls
       path: /
-    # -- STS Endpoint, used to obtain tokens
+    # -- STS endpoint, used by the connector to obtain self-issued tokens (iatp.sts.oauth.token_url). Internet facing only if the connector uses the public hostname
     sts:
       # -- port for incoming api calls
       port: 9292
@@ -184,7 +184,7 @@ wallet:
 
   ## Ingress declaration to expose the network service.
   ingresses:
-    ## Public / Internet facing Ingress for the Presentation API
+    ## Public / Internet facing Ingress for the DCP Presentation/Storage, DID and STS APIs
     - enabled: true
       # -- The hostname to be used to precisely map incoming traffic onto the underlying network service -- empty = global.wallet.hostname
       hostname: ""

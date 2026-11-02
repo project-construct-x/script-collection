@@ -208,7 +208,6 @@ Each endpoint creates a Kubernetes Service port and injects the corresponding `W
 | `wallet.endpoints.identity.authKeyAlias` | `sup3r$3cr3t` | — | Vault alias whose stored value is validated against the `X-Api-Key` request header. |
 | `wallet.endpoints.issueradmin` | `15152` | `/api/issuer` | Issuer Admin API endpoint, must not be internet facing. |
 | `wallet.endpoints.did` | `80` | `/` | DID document service. Resolves `did:web` documents. Must be publicly reachable. |
-| `wallet.endpoints.sts` | `9292` | `/api/sts` | Secure Token Service. Issues self-signed ID tokens for DCP flows. Public-facing. |
 | `wallet.endpoints.statuslist` | `9999` | `/statuslist` | StatusList API, used to check the status of verifiable credentials. Public-facing. |
 | `wallet.endpoints.issuance` | `13132` | `/api/issuance` | DCP Issuance API. Public-facing. |
 
