@@ -96,6 +96,12 @@ helm dependency build
 helm install issuer . -f my-override-values.yaml
 ```
 
+> **SQL vault (`vaultInit.mode=postgres`):** Offline-rendered deployments
+> (`helm template`, Argo CD Helm rendering) are currently unsupported.
+> Without cluster access, `lookup` cannot reuse the AES Secret and the chart
+> generates a new key. Applying it can make existing SQL-vault data unreadable.
+> Use `helm install` / `helm upgrade` with permission to read the existing Secret.
+
 > **Do not use `--wait` or `--atomic` for the first installation with
 > `vaultInit.mode=hashicorp-persistent` and `vaultInit.autoInit.enabled=true`.**
 > See [Installing with autoInit](#installing-with-autoinit).
