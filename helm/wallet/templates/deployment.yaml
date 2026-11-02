@@ -39,10 +39,16 @@ spec:
       {{- include "wallet.server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.wallet.podAnnotations }}
       annotations:
+        # roll pods on config changes with helm update
+        checksum/configmap-runtime: {{ include (print $.Template.BasePath "/configmap-runtime.yaml") . | sha256sum }}
+        checksum/configmap-datasource: {{ include (print $.Template.BasePath "/configmap-datasource.yaml") . | sha256sum }}
+        checksum/configmap-customcacerts: {{ include (print $.Template.BasePath "/configmap-customcacerts.yaml") . | sha256sum }}
+        checksum/secret-datasource: {{ include (print $.Template.BasePath "/secret-datasource.yaml") . | sha256sum }}
+        checksum/secret-runtime: {{ include (print $.Template.BasePath "/secret-runtime.yaml") . | sha256sum }}
+        {{- with .Values.wallet.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "wallet.server.selectorLabels" . | nindent 8 }}
         {{- with .Values.wallet.podLabels }}

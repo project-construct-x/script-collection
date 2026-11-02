@@ -40,10 +40,17 @@ spec:
       {{- include "conxdc.dataplane.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.dataplane.podAnnotations }}
       annotations:
+        # roll pods on config changes with helm update
+        checksum/configmap-dataplane: {{ include (print $.Template.BasePath "/configmap-dataplane.yaml") . | sha256sum }}
+        checksum/configmap-dataplane-otel: {{ include (print $.Template.BasePath "/configmap-dataplane-otel.yaml") . | sha256sum }}
+        checksum/configmap-log4j2: {{ include (print $.Template.BasePath "/configmap-log4j2.yaml") . | sha256sum }}
+        checksum/configmap-customcacerts: {{ include (print $.Template.BasePath "/configmap-customcacerts.yaml") . | sha256sum }}
+        checksum/secret-dataplane: {{ include (print $.Template.BasePath "/secret-dataplane.yaml") . | sha256sum }}
+        checksum/secret-datasource: {{ include (print $.Template.BasePath "/secret-datasource.yaml") . | sha256sum }}
+        {{- with .Values.dataplane.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "conxdc.dataplane.selectorLabels" . | nindent 8 }}
         {{- with .Values.dataplane.podLabels }}

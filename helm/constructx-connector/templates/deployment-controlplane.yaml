@@ -40,10 +40,17 @@ spec:
       {{- include "conxdc.controlplane.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.controlplane.podAnnotations }}
       annotations:
+        # roll pods on config changes with helm update
+        checksum/configmap-controlplane: {{ include (print $.Template.BasePath "/configmap-controlplane.yaml") . | sha256sum }}
+        checksum/configmap-controlplane-otel: {{ include (print $.Template.BasePath "/configmap-controlplane-otel.yaml") . | sha256sum }}
+        checksum/configmap-log4j2: {{ include (print $.Template.BasePath "/configmap-log4j2.yaml") . | sha256sum }}
+        checksum/configmap-customcacerts: {{ include (print $.Template.BasePath "/configmap-customcacerts.yaml") . | sha256sum }}
+        checksum/secret-controlplane: {{ include (print $.Template.BasePath "/secret-controlplane.yaml") . | sha256sum }}
+        checksum/secret-datasource: {{ include (print $.Template.BasePath "/secret-datasource.yaml") . | sha256sum }}
+        {{- with .Values.controlplane.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "conxdc.controlplane.selectorLabels" . | nindent 8 }}
         {{- with .Values.controlplane.podLabels }}
