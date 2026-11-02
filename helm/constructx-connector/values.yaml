@@ -123,7 +123,7 @@ controlplane:
     # -- [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use
     pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion
-    tag: "0.17.0-1"
+    tag: "0.17.0-1@sha256:ac52e5c9522296ad2da888b2e1a6505fcc7545bd3e3d73d4879831e43d8a7206"
   # -- Configure ghcr credentials to pull the control plane image
   imagePullSecrets:
     - name: ghcr-creds
@@ -385,7 +385,7 @@ dataplane:
     # -- [Kubernetes image pull policy](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) to use
     pullPolicy: IfNotPresent
     # -- Overrides the image tag whose default is the chart appVersion
-    tag: "0.17.0-1"
+    tag: "0.17.0-1@sha256:7d26565bde05e2175788e157adb7dc41bca01b28a65120c4a0c51ed3eb8892b3"
   # -- Configure ghcr credentials to pull the control plane image
   imagePullSecrets:
     - name: ghcr-creds
@@ -749,7 +749,7 @@ vaultInit:
   # Image for the vault-init job.
   image:
     repository: "alpine"
-    tag: "3.20"
+    tag: "3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
   # Automatic init/unseal of a persistent Vault. Only for mode=hashicorp-persistent.
   # Non-prod only (single unseal key, keys stored as a cluster Secret).
   autoInit:
@@ -795,4 +795,4 @@ tests:
     # -- Image of the Helm test pods, must provide sh and curl
     repository: "curlimages/curl"
     # -- Tag of the Helm test image
-    tag: "8.10.1"
+    tag: "8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93"

@@ -253,7 +253,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 |-----|------|---------|-------------|
 | `tests.hookDeletePolicy` | string | `before-hook-creation,hook-succeeded` | Helm test hook delete policy. |
 | `tests.image.repository` | string | `"curlimages/curl"` | Image of the Helm test pods, must provide sh and curl |
-| `tests.image.tag` | string | `"8.10.1"` | Tag of the Helm test image |
+| `tests.image.tag` | string | `"8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93"` | Tag of the Helm test image |
 
 ### `postgresql`
 
@@ -314,7 +314,7 @@ The chart uses the Cloudpirates PostgreSQL Chart.
 | `vaultInit.rsa.publicAlias` | string | `pub` | Vault alias of the RSA public key. |
 | `vaultInit.forceRegenerate` | bool | `false` | Regenerate secrets even if present. |
 | `vaultInit.image.repository` | string | `alpine` | Image of the vault-init job. |
-| `vaultInit.image.tag` | string | `3.20` | Tag of the vault-init job image. |
+| `vaultInit.image.tag` | string | `3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a` | Tag of the vault-init job image. |
 | `vaultInit.autoInit.enabled` | bool | `false` | Auto-initialise and unseal a persistent Vault. `hashicorp-persistent` only. Non-production. |
 | `vaultInit.autoInit.keysSecretName` | string | `wallet-vault-keys` | Secret holding the unseal key and root token. |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File audit device path. Empty to skip enabling audit. |

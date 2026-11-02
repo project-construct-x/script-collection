@@ -440,7 +440,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 | `vaultInit.rsa.publicAlias` | string | `pub` | Alias of the public key stored in the vault. |
 | `vaultInit.forceRegenerate` | bool | `false` | Regenerate secrets even if they already exist. |
 | `vaultInit.image.repository` | string | `alpine` | Image repository for the vault-init job. |
-| `vaultInit.image.tag` | string | `3.20` | Image tag for the vault-init job. |
+| `vaultInit.image.tag` | string | `3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a` | Image tag for the vault-init job. |
 | `vaultInit.autoInit.enabled` | bool | `false` | Automatic init/unseal of a persistent Vault. Only for `mode=hashicorp-persistent`. Non-prod only (single unseal key, keys stored as a cluster Secret). |
 | `vaultInit.autoInit.keysSecretName` | string | `connector-vault-keys` | Name of the Kubernetes Secret storing the unseal key and root token. |
 | `vaultInit.autoInit.auditPath` | string | `/vault/audit/audit.log` | File path for the audit device. Must reside within `vault.server.auditStorage.mountPath`. Leave empty to skip enabling the audit device. |
@@ -469,7 +469,7 @@ A list of Ingress definitions. Each entry creates one Ingress resource routing t
 |-----|------|---------|-------------|
 | `tests.hookDeletePolicy` | string | `before-hook-creation,hook-succeeded` | Helm test hook delete policy. |
 | `tests.image.repository` | string | `"curlimages/curl"` | Image of the Helm test pods, must provide sh and curl |
-| `tests.image.tag` | string | `"8.10.1"` | Tag of the Helm test image |
+| `tests.image.tag` | string | `"8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93"` | Tag of the Helm test image |
 
 ## Sources
 

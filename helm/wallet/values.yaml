@@ -326,7 +326,7 @@ tests:
     # -- Image of the Helm test pods, must provide sh and curl
     repository: "curlimages/curl"
     # -- Tag of the Helm test image
-    tag: "8.10.1"
+    tag: "8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93"
 
 postgresql:
   host: ""
@@ -438,7 +438,7 @@ vaultInit:
   # Image for the vault-init job.
   image:
     repository: "alpine"
-    tag: "3.20"
+    tag: "3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
   # Automatic init/unseal of a persistent Vault. Only for mode=hashicorp-persistent.
   # Non-prod only (single unseal key, keys stored as a cluster Secret).
   autoInit:

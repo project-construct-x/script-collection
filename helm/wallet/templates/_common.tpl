@@ -143,7 +143,7 @@ global.vaultInit.image.{repository,tag} -> vaultInit.image.{repository,tag}
 {{- define "wallet.vaultInit.image" -}}
 {{- $global := .Values.global | default dict -}}
 {{- $repository := dig "vaultInit" "image" "repository" (.Values.vaultInit.image.repository | default "alpine") $global -}}
-{{- $tag := dig "vaultInit" "image" "tag" (.Values.vaultInit.image.tag | default "3.20") $global -}}
+{{- $tag := dig "vaultInit" "image" "tag" (.Values.vaultInit.image.tag | default "3.24") $global -}}
 {{- printf "%s:%v" $repository $tag -}}
 {{- end -}}
 
