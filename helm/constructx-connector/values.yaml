@@ -61,7 +61,7 @@ iatp:
   # -- Default scope that is always requested when presenting credentials (DCP).
   defaultScope:
     # -- Credential type
-    type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
+    type: "https://w3id.org/constructx/credentials/v0.1/MembershipCredential"
   didService:
     selfRegistration:
       # -- Whether Service Self Registration is enabled
