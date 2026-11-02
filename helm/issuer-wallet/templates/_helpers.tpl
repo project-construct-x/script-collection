@@ -163,8 +163,9 @@ Defines the scheme of public URLs (statuslist callback), derived from wallet.ing
 */}}
 {{- define "issuer-wallet.publicScheme" -}}
 {{- $ingress := .Values.wallet.ingresses | default list | first | default dict -}}
-{{- $tls := or (not $ingress.enabled) (dig "tls" "enabled" false $ingress) -}}
-{{- ternary "https" "http" $tls -}}
+{{- $tls := $ingress.tls | default dict -}}
+{{- $useHttps := or (not $ingress.enabled) ($tls.enabled | default false) -}}
+{{- ternary "https" "http" $useHttps -}}
 {{- end -}}
 
 {{/*

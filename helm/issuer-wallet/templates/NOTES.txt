@@ -43,8 +43,10 @@
 {{- if $ingress.enabled }}
 {{- $ingressShown = true }}
 {{- $host := include "issuer-wallet.ingress.host" (dict "context" $ "item" $ingress) }}
+{{- $tls := $ingress.tls | default dict }}
+{{- $tlsEnabled := $tls.enabled | default false }}
 {{- $proto := "http" }}
-{{- if $ingress.tls.enabled }}{{ $proto = "https" }}{{ end }}
+{{- if $tlsEnabled }}{{ $proto = "https" }}{{ end }}
 
   Ingress on {{ $host }} (className: {{ include "issuer-wallet.ingress.className" (dict "context" $ "item" $ingress) | default "default" }})
 {{- range $ingress.endpoints }}

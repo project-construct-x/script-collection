@@ -42,10 +42,11 @@
 {{- if $ingress.enabled }}
 {{- $controlplaneHasIngress = true }}
 {{- $host := include "conxdc.ingress.host" (dict "context" $ "item" $ingress "plane" "controlplane") }}
-{{- $scheme := "http" }}{{- if $ingress.tls.enabled }}{{ $scheme = "https" }}{{ end }}
+{{- $tls := $ingress.tls | default dict }}
+{{- $tlsEnabled := $tls.enabled | default false }}
+{{- $scheme := "http" }}{{- if $tlsEnabled }}{{ $scheme = "https" }}{{ end }}
 
-  Ingress {{ $host }} (class: {{ include "conxdc.ingress.className" (dict "context" $ "item" $ingress) | default "default" }}, tls: {{ $ingress.tls.enabled }})
-  exposes these endpoints:
+  Ingress {{ $host }} (class: {{ include "conxdc.ingress.className" (dict "context" $ "item" $ingress) | default "default" }}, tls: {{ $tlsEnabled }}) exposes these endpoints:
 {{- range $endpointName := $ingress.endpoints }}
 {{- $endpoint := index $.Values.controlplane.endpoints $endpointName }}
 {{- if $endpoint }}
@@ -89,10 +90,11 @@
 {{- if $ingress.enabled }}
 {{- $dataplaneHasIngress = true }}
 {{- $host := include "conxdc.ingress.host" (dict "context" $ "item" $ingress "plane" "dataplane") }}
-{{- $scheme := "http" }}{{- if $ingress.tls.enabled }}{{ $scheme = "https" }}{{ end }}
+{{- $tls := $ingress.tls | default dict }}
+{{- $tlsEnabled := $tls.enabled | default false }}
+{{- $scheme := "http" }}{{- if $tlsEnabled }}{{ $scheme = "https" }}{{ end }}
 
-  Ingress {{ $host }} (class: {{ include "conxdc.ingress.className" (dict "context" $ "item" $ingress) | default "default" }}, tls: {{ $ingress.tls.enabled }})
-  exposes these endpoints:
+  Ingress {{ $host }} (class: {{ include "conxdc.ingress.className" (dict "context" $ "item" $ingress) | default "default" }}, tls: {{ $tlsEnabled }}) exposes these endpoints:
 {{- range $endpointName := $ingress.endpoints }}
 {{- $endpoint := index $.Values.dataplane.endpoints $endpointName }}
 {{- if $endpoint }}
