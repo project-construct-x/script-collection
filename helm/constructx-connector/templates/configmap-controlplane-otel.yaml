@@ -30,8 +30,9 @@ metadata:
     {{- include "conxdc.controlplane.labels" . | nindent 4 }}
 data:
   opentelemetry.properties: |-
-    {{- .Values.controlplane.opentelemetry | nindent 4 }}
+    {{- trimSuffix "\n" .Values.controlplane.opentelemetry | nindent 4 }}
     {{- /* bind the prometheus exporter to controlplane.endpoints.metrics, unless set explicitly */}}
     {{- if not (contains "otel.exporter.prometheus.port" .Values.controlplane.opentelemetry) }}
+    {{- "" | nindent 4 }}
     otel.exporter.prometheus.port={{ .Values.controlplane.endpoints.metrics.port }}
     {{- end }}
