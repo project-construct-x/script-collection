@@ -79,7 +79,8 @@
   The issuer-wallet auto-seeds a super-user on first start:
 
     Participant ID   : {{ .Values.wallet.superuser.id }}
-    API key          : {{ .Values.wallet.superuser.apiKey }}
+    API key          : stored in secret {{ $fullName }}-superuser-credentials
+                       kubectl -n {{ $namespace }} get secret {{ $fullName }}-superuser-credentials -o yaml
     Public key alias : {{ .Values.wallet.superuser.publicKeyAlias }}
     Private key alias: {{ .Values.wallet.superuser.privateKeyAlias }}
 
