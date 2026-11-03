@@ -50,12 +50,15 @@ wallet:
   image:
     # Image for vaultInit.mode=hashicorp-dev | hashicorp-persistent
     repositoryVaultWallet: "ghcr.io/project-construct-x/wallet"
+    # Overrides the image tag for vaultInit.mode=hashicorp-dev whose default is the chart appVersion.
+    tagVaultWallet: "0.18.0-1@sha256:fd0f562f5fa3a6e392d4b1b3abc5eb277944ce0a92b09344a9cf107f70116576"
     # Image for vaultInit.mode=postgres
     repositoryPsqlWallet: "ghcr.io/project-construct-x/wallet-sql-vault"
+    # Overrides the image tag for vaultInit.mode=postgres whose default is the chart appVersion.
+    tagPsqlWallet: "0.18.0-1@sha256:19d8c05a41d8465962335b56d186ca0574b7f461c400c168e76f361742eec9ef"
     # This sets the pull policy for images.
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: "0.18.0-1"
+
   initContainers: []
   # This is for setting Kubernetes Labels to a Pod.
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/

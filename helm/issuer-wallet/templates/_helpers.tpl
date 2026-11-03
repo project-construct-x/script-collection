@@ -100,10 +100,11 @@ Create the name of the service account to use
 Defines Image depending on chosen Vault Mode
 */}}
 {{- define "issuer-wallet.image" -}}
-{{- $tag := .Values.wallet.image.tag | default .Chart.AppVersion -}}
 {{- if eq (include "issuer-wallet.vault.mode" .) "postgres" -}}
+{{- $tag := .Values.wallet.image.tagPsqlWallet | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.wallet.image.repositoryPsqlWallet $tag -}}
 {{- else -}}
+{{- $tag := .Values.wallet.image.tagVaultWallet | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.wallet.image.repositoryVaultWallet $tag -}}
 {{- end -}}
 {{- end -}}
