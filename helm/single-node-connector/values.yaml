@@ -89,7 +89,7 @@ constructx-connector:
     # -- Default scope that is always requested when presenting credentials (DCP).
     defaultScope:
       # -- Credential type
-      type: "https://w3id.org/constructx/credentials/v1.0/ConstructXMembershipCredential"
+      type: "https://w3id.org/constructx/credentials/v0.1/MembershipCredential"
   vaultInit:
     rsa:
       enabled: true
@@ -104,7 +104,7 @@ constructx-connector:
   dataplane:
     ingresses:
       - enabled: true
-        endpoints: [public, proxy]
+        endpoints: [public]
         tls: { enabled: true, secretName: "edc-dp-tls" }
 
 wallet:
@@ -129,5 +129,5 @@ wallet:
       apiKey: YWRtaW4.adminKey
     ingresses:
       - enabled: true
-        endpoints: [credentials, did, sts]
+        endpoints: [credentials, did]
         tls: { enabled: true, secretName: "wallet-tls" }

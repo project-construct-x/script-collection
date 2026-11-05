@@ -45,10 +45,9 @@ helm install edc . -f /my-override-values.yaml --render-subchart-notes
 ```
 
 > **`global.vault.autoInit` is not production safe.** A single unseal key and the root token
-> are stored as a Kubernetes secret in the release namespace. The Vault is
-> sealed again after a pod restart and is *not* unsealed automatically. For
-> production use KMS auto-unseal and external key management, and keep
-> `global.vault.autoInit.enabled=false`.
+> are stored as a Kubernetes secret in the release namespace. After a Vault pod restart,
+> the connector's `<connector-fullname>-vault-unsealer` deployment unseals the Vault again. 
+> For production use KMS auto-unseal and external key management, and keep `global.vault.autoInit.enabled=false`.
 
 ## Configuration
 
