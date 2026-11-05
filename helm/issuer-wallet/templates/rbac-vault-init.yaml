@@ -1,0 +1,73 @@
+#################################################################################
+#  Copyright (c) 2026 Zentralverband der Deutschen Elektro- und Informationstechnischen Handwerke (ZVEH)
+#
+#  See the NOTICE file(s) distributed with this work for additional
+#  information regarding copyright ownership.
+#
+#  This program and the accompanying materials are made available under the
+#  terms of the Apache License, Version 2.0 which is available at
+#  https://www.apache.org/licenses/LICENSE-2.0.
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations
+#  under the License.
+#
+#  SPDX-License-Identifier: Apache-2.0
+#################################################################################
+
+
+{{- if eq (include "issuer-wallet.vaultInit.jobEnabled" .) "true" }}
+{{- $saName := include "issuer-wallet.vaultInit.serviceAccountName" . }}
+---
+# Dedicated ServiceAccount of the vault-init job.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $saName }}
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "issuer-wallet.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+
+{{- if eq (include "issuer-wallet.vault.autoInit.enabled" .) "true" }}
+---
+# Role and RoleBinding is only rendered with autoInit
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $saName }}
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "issuer-wallet.labels" . | nindent 4 }}
+rules:
+  # can create secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  # can read and update Vault specific secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - {{ include "issuer-wallet.vault.autoInit.keysSecretName" . | quote }}
+      - {{ include "issuer-wallet.appTokenSecretName" . | quote }}
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $saName }}
+  namespace: {{ .Release.Namespace | default "default" | quote }}
+  labels:
+    {{- include "issuer-wallet.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $saName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $saName }}
+    namespace: {{ .Release.Namespace | default "default" | quote }}
+{{- end }}
+{{- end }}
