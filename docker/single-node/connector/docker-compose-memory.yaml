@@ -94,7 +94,7 @@ services:
 
   wallet:
     container_name: wallet
-    image: ghcr.io/project-construct-x/wallet:0.18.0-1
+    image: ghcr.io/project-construct-x/wallet:0.18.0-2
     pull_policy: missing
     depends_on:
       postgres:
