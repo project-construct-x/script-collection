@@ -156,7 +156,7 @@ Global values are shared with other charts when this chart is used as a dependen
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `wallet.image.repository` | string | `ghcr.io/project-construct-x/wallet` | Container image repository. |
-| `wallet.image.tag` | string | `0.18.0-1@sha256:fd0f562f5fa3a6e392d4b1b3abc5eb277944ce0a92b09344a9cf107f70116576` | Image tag. Defaults to `chart.appVersion` if left empty. |
+| `wallet.image.tag` | string | `0.18.0-2@sha256:9dfb9808e4cadd43fcfae13e8c6f745cff2f2fce8728e31db3ff9fcf768526eb` | Image tag. Defaults to `chart.appVersion` if left empty. |
 | `wallet.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
 | `wallet.initContainers` | list | `[]` | Additional init containers run before the wallet starts. |
 | `wallet.podLabels` | object | `{}` | Extra labels applied to the wallet pod. |

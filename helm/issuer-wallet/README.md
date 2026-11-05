@@ -168,9 +168,9 @@ Global values are shared with other charts when this chart is used as a dependen
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `wallet.image.repositoryVaultWallet` | string | `ghcr.io/project-construct-x/wallet`             | `vaultInit.mode` = `hashicorp-dev` / `hashicorp-persistent`.                                                |
-| `wallet.image.tagVaultWallet` | string | `0.18.0-1@sha256:fd0f562f5fa3a6e392d4b1b3abc5eb277944ce0a92b09344a9cf107f70116576` | # Overrides the image tag for `vaultInit.mode=hashicorp-dev` and `hashicorp-persistent` whose default is the chart appVersion. |
+| `wallet.image.tagVaultWallet` | string | `0.18.0-2@sha256:9dfb9808e4cadd43fcfae13e8c6f745cff2f2fce8728e31db3ff9fcf768526eb` | # Overrides the image tag for `vaultInit.mode=hashicorp-dev` and `hashicorp-persistent` whose default is the chart appVersion. |
 | `wallet.image.repositoryPsqlWallet`  | string | `ghcr.io/project-construct-x/wallet-sql-vault`   | Container image used when `vaultInit.mode` = `postgres` . |
-| `wallet.image.tagPsqlWallet` | string | `0.18.0-1@sha256:19d8c05a41d8465962335b56d186ca0574b7f461c400c168e76f361742eec9ef` | Overrides the image tag for `vaultInit.mode=postgres` whose default is the chart appVersion. |
+| `wallet.image.tagPsqlWallet` | string | `0.18.0-2@sha256:ad854483ec17f8aa73cd59225baa85965c5f935c418899c1894adc0def8e35d4` | Overrides the image tag for `vaultInit.mode=postgres` whose default is the chart appVersion. |
 | `wallet.image.pullPolicy` | string | `IfNotPresent` | Kubernetes image pull policy. |
 | `wallet.initContainers` | list | `[]` | Additional init containers run before the wallet starts. |
 | `wallet.podLabels` | object | `{}` | Extra labels applied to the wallet pod. |
