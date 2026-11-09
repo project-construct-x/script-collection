@@ -33,7 +33,7 @@ metadata:
     # ArgoCD: run during Sync (not PostSync) so it isn't gated on Vault/wallet being Healthy
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: "-5"   # configmap: -5, job: "0" so the script exists before the job
+    argocd.argoproj.io/sync-wave: "0"   # after the script ConfigMap (wave -5)
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 600
