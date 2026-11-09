@@ -30,6 +30,10 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation
+    # ArgoCD: run during Sync (not PostSync) so it isn't gated on Vault/wallet being Healthy
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"   # configmap: -5, job: "0" so the script exists before the job
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 600
