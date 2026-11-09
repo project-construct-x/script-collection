@@ -32,6 +32,10 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    # ArgoCD: run during Sync (not PostSync) so it isn't gated on Vault/connector being Healthy
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"   # before the vault-init Job (wave 0)
 data:
   init.sh: |
     #!/usr/bin/env sh
