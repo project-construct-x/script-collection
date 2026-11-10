@@ -156,7 +156,7 @@ services:
       - edc-network
 
   controlplane:
-    image: ${CONTROLPLANE_IMAGE:-ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:latest}
+    image: ${CONTROLPLANE_IMAGE:-ghcr.io/project-construct-x/con-x-controlplane-postgresql-hashicorp-vault:0.14.1-1}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
@@ -210,11 +210,12 @@ services:
       edc.vault.hashicorp.health.check.enabled: "true"
       edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
       tx.edc.iam.dcp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
-      tx.edc.iam.dcp.default-scopes.membership.type: MembershipCredential
+      tx.edc.iam.dcp.default-scopes.membership.type: ${MEMBERSHIP_CREDENTIAL_TYPE:-MembershipCredential}
       tx.edc.iam.dcp.default-scopes.membership.operation: read
       tx.edc.iam.iatp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
-      tx.edc.iam.iatp.default-scopes.membership.type: MembershipCredential
+      tx.edc.iam.iatp.default-scopes.membership.type: ${MEMBERSHIP_CREDENTIAL_TYPE:-MembershipCredential}
       tx.edc.iam.iatp.default-scopes.membership.operation: read
+      edc.abac.defaultcredential: ${MEMBERSHIP_CREDENTIAL_TYPE:-MembershipCredential}
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 15s
@@ -238,7 +239,7 @@ services:
       - edc-network
 
   dataplane:
-    image: ${DATAPLANE_IMAGE:-ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:latest}
+    image: ${DATAPLANE_IMAGE:-ghcr.io/project-construct-x/con-x-dataplane-postgresql-hashicorp-vault:0.14.1-1}
     pull_policy: missing
     restart: unless-stopped
     depends_on:

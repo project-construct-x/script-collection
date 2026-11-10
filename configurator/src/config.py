@@ -45,6 +45,7 @@ class ConnectorConfig(BaseSettings):
 
     trusted_issuer_did: str = ""
     membership_credential_definition_id: str = "dev-credential-def-1"
+    membership_credential_type: str = "MembershipCredential"
 
     wallet_identity_api: str = "http://127.0.0.1:20100/api/identity"
     wallet_superuser_key: str = "YWRtaW4.change-me"

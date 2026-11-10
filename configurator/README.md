@@ -57,7 +57,7 @@ python -m build
 
 `edc start` pulls missing runtime images from GitHub Container Registry (GHCR),
 using the references in `docker/.docker.env`. The defaults use the Control Plane
-and Data Plane `latest` images, Construct-X Wallet `0.18.0-1`, and HashiMock.
+and Data Plane `0.14.1-1` images, Construct-X Wallet `0.18.0-1`, and HashiMock.
 No local build of the planes is required.
 
 Registry access may require authentication:
@@ -66,9 +66,11 @@ Registry access may require authentication:
 docker login ghcr.io
 ```
 
-To select other compatible images, edit `CONTROLPLANE_IMAGE` and
-`DATAPLANE_IMAGE` in `docker/.docker.env`. The `latest` tags are mutable; use
-fixed tags or digests to pin a deployment.
+For Construct-X EDC `0.17.0-1`, set both plane image tags to `0.17.0-1` in
+`docker/.docker.env`. In `.env`, set `TRUSTED_ISSUER_DID`,
+`MEMBERSHIP_CREDENTIAL_DEFINITION_ID`, and `MEMBERSHIP_CREDENTIAL_TYPE` to the
+values for that dataspace. The new release expects a credential type URI, such
+as `https://w3id.org/constructx/credentials/v0.1/MembershipCredential`.
 
 ### Configuration
 Create the runtime environment file from the shipped example

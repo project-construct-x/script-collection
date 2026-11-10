@@ -24,7 +24,7 @@ def request_membership_credential(config: ConnectorConfig, participant_api_key: 
         "credentials": [
             {
                 "format": "VC1_0_JWT",
-                "type": "MembershipCredential",
+                "type": config.membership_credential_type,
                 "id": config.membership_credential_definition_id,
             }
         ],
