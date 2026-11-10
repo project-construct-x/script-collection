@@ -33,10 +33,10 @@ issuer operator.
 ## Requirements
 
 - Python 3.11 or newer
-- Docker with the Compose plugin for local lifecycle operations
+- Docker with Linux containers and Compose 2.24.4 or newer
 - Access to a compatible trusted issuer for local participant onboarding
-- Public TCP ports 80 and 443 for standalone HTTPS and ACME certificate issuance
-- A valid public domain for a local deployment
+- An assigned workshop hostname and individual Cloudflare Tunnel token
+- Outbound Cloudflare connectivity on port 7844 (TCP or UDP)
 - Compatible Control Plane and Data Plane images for the bundled deployment
 
 ## Setup
@@ -60,7 +60,7 @@ python -m build
 
 `edc start` pulls missing runtime images from GitHub Container Registry (GHCR),
 using the references in `docker/.docker.env`. The defaults use the Control Plane
-and Data Plane `0.14.1-1` images, Construct-X Wallet `0.18.0-1`, and HashiMock.
+and Data Plane `0.17.0-1` images, Construct-X Wallet `0.18.0-2`, and HashiMock.
 No local build of the planes is required.
 
 Registry access may require authentication:
@@ -69,11 +69,7 @@ Registry access may require authentication:
 docker login ghcr.io
 ```
 
-For Construct-X EDC `0.17.0-1`, set both plane image tags to `0.17.0-1` in
-`docker/.docker.env`. In `.env`, set `TRUSTED_ISSUER_DID`,
-`MEMBERSHIP_CREDENTIAL_DEFINITION_ID`, and `MEMBERSHIP_CREDENTIAL_TYPE` to the
-values for that dataspace. The new release expects a credential type URI, such
-as `https://w3id.org/constructx/credentials/v0.1/MembershipCredential`.
+The workshop issuer and credential type URI are preset in `.env.example`.
 
 ### Configuration
 Create the runtime environment file from the shipped example
@@ -81,14 +77,15 @@ Create the runtime environment file from the shipped example
 cp .env.example .env
 ```
 
-Adjust the contained values _before_ starting the connector.
+Set only `CONNECTOR_DOMAIN` and `CLOUDFLARE_TUNNEL_TOKEN` for your assigned seat.
+`edc start` derives the participant DID and generates individual local secrets.
 
 Important settings include:
 
 | Variable                                | Format                                                              | Comment                                                                          |
 |-----------------------------------------|---------------------------------------------------------------------|----------------------------------------------------------------------------------|
-| `CONNECTOR_DOMAIN`                      | connector.example.org                                               | Public domain of the participants EDC server                                     |
-| `ACME_EMAIL`                            | admin@example.org                                                   | Email to retrieve a LetsEncrypt Certificate                                      |
+| `CONNECTOR_DOMAIN`                      | teilnehmer01.dataspace-portal.com                                    | Assigned public hostname                                                         |
+| `CLOUDFLARE_TUNNEL_TOKEN`                | individual token                                                    | Supplied privately by the organizer                                              |
 | `PARTICIPANT_DID`                       | did:web:<connector-domain>:<participant-id>                         | DID of the operator participant                                                  |
 | `PARTICIPANT_CONTEXT_ID`                | <participant-id>                                                    | Participant context in the wallet                                                |
 | `TRUSTED_ISSUER_DID`                    | did:web:<issuer-host>:<issuer-id>                                   | DID of the membership credential issuer.<br/>Provided by the dataspace operator. |
@@ -102,16 +99,15 @@ If not set explicitly, those values are generated using `CONNECTOR_DOMAIN` as a 
 | `PARTICIPANT_DATAPLANE_PUBLIC_URL`   | https://<connector-domain>/public                                             | Public participant dataplane URL, auto-generated if not set       |
 | `PARTICIPANT_CREDENTIAL_SERVICE_URL` | https://<connector-domain>/api/credentials/v1/participants/<participant-id>   | Public participant credential endpoint, auto-generated if not set |
 | `PARTICIPANT_ISSUER_SERVICE_URL`     | https://<connector-domain>/api/issuance/v1beta/participants/<participant-id> | Public participant issuance endpoint, auto-generated if not set   |
-| `CONNECTOR_MANAGEMENT_API`           | https://<connector-domain>/management                                         | Control Plane Management API, auto-generated if not set            |
+| `CONNECTOR_MANAGEMENT_API`           | http://127.0.0.1:29110/management                                             | Local Control Plane Management API                                |
 
 For peer catalog and contract requests, use the versioned DSP endpoint
 `https://<peer-domain>/dsp/2025-1`.
 
-The following settings should be changed to random secrets
+The following secrets are generated on the first `edc start` and retained in `.env`:
 
 | Variable                       | Format           | Comment                         |
 |--------------------------------|------------------|---------------------------------|
-| `PARTICIPANT_SECRET_ALIAS`     | <random>         |                                 |
 | `POSTGRES_PASSWORD`            | <random>         | Database password               |
 | `WALLET_SUPERUSER_KEY`         | YWRtaW4.<random> | Local wallet administration key |
 | `VAULT_TOKEN`                  | <random>         | Local Vault token               |
@@ -122,9 +118,7 @@ Management API settings and the participant DID are validated when the
 configuration is loaded. The domain, wallet context, Wallet, Vault, and trusted
 issuer settings are required only when local onboarding is started.
 
-Run `edc config` to create or update the common connector settings
-interactively. Local deployment secrets still need to be set directly in
-`.env`.
+Keep the workshop issuer settings and participant context from `.env.example`.
 
 ### Operate an Existing Connector
 
@@ -165,14 +159,15 @@ deployments should use a properly secured secret-management system.
 
 The startup phase consists of these operations:
 
-1. Start Traefik, PostgreSQL, Vault, the Vault initialization job, and the
+1. Start the assigned Cloudflare Tunnel;
+2. Start Traefik, PostgreSQL, Vault, the Vault initialization job, and the
    participant wallet;
-2. Create or reuse the participant context;
-3. Store the participant client secret in Vault;
-4. Reuse an existing membership credential or request one from the trusted
+3. Create or reuse the participant context and store its client secret in Vault;
+4. Check the public DID document;
+5. Reuse an existing membership credential or request one from the trusted
    issuer;
-5. Wait for the credential;
-6. Start the Control Plane and Data Plane.
+6. Wait for the credential;
+7. Start the Control Plane and Data Plane.
 
 Participant bootstrap state is stored in `.state/participant.json` unless configured otherwise.
 This file contains sensitive credentials and must not be committed or shared.
@@ -180,17 +175,15 @@ This file contains sensitive credentials and must not be committed or shared.
 After installing the Python package, the EDC CLI is available via the `edc` command.
 **Run this from the base directory, not within `src`!**
 
-**Note:** Before starting the connector, register your wallet as a holder at
-the central issuer. Email your domain-based `did:web` (`PARTICIPANT_DID` in
-`.env`) to [david.goerzig@arena2036.de](mailto:david.goerzig@arena2036.de) and
-[saud.khan@arena2036.de](mailto:saud.khan@arena2036.de).
+The organizer preregisters the ten assigned DIDs as holders and configures their
+attestation in the separate workshop issuer.
 
 Start the connector using:
 
 ```bash
 edc start
 ```
-This will run all six phases of the startup phase.
+This runs the startup sequence described above.
 
 #### Data Exchange
 
