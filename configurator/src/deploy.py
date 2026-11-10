@@ -17,7 +17,8 @@ from pathlib import Path
 from config import ConnectorConfig
 from exceptions import ConnectorError
 from http_client import request_json
-from onboarding import onboard_connector
+from onboarding import initialize_participant, onboard_connector
+from workshop import prepare_environment
 
 INFRASTRUCTURE_SERVICES = ("traefik", "postgres", "edc-vault", "vault-init", "edc-wallet", "local-webserver")
 CONNECTOR_SERVICES = ("controlplane", "dataplane")
@@ -25,7 +26,7 @@ CONNECTOR_SERVICES = ("controlplane", "dataplane")
 ENV_FILE = ".env"
 
 def _compose_file_args(config: ConnectorConfig) -> list[str]:
-    files = ["docker/compose.yml"]
+    files = ["docker/compose.yml", "docker/compose.workshop.yml"]
     if config.use_edge_proxy:
         files.append("docker/compose.edge.yml")
     return [argument for path in files for argument in ("-f", path)]
@@ -47,11 +48,26 @@ def _wait_for_wallet(config: ConnectorConfig, attempts: int = 60, interval_secon
 
 
 def setup(config: ConnectorConfig | None = None) -> None:
+    if config is None:
+        prepare_environment()
     config = config or ConnectorConfig.from_env(ENV_FILE)
     config.validate_local_onboarding()
+    _start_services(config, ("cloudflared",))
     start_infrastructure(config)
     print("Waiting...", "infrastructure startup")
     _wait_for_wallet(config)
+    initialize_participant(config)
+    did_url = f"https://{config.connector_domain}/{config.participant_context_id}/did.json"
+    for attempt in range(60):
+        try:
+            status, document = request_json("GET", did_url, timeout=10)
+            if status == 200 and isinstance(document, dict) and document.get("id") == config.participant_did:
+                break
+        except ConnectorError:
+            pass
+        if attempt == 59:
+            raise ConnectorError(f"Public DID document is not reachable: {did_url}")
+        time.sleep(2)
     onboarding = onboard_connector(config)
     print("Onboarding", onboarding)
 

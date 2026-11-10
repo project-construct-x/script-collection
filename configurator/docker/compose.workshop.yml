@@ -1,0 +1,36 @@
+# Copyright (c) 2026 Bergische Universitaet Wuppertal
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.7
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set your individual tunnel token in .env}
+    restart: unless-stopped
+    networks:
+      - edc-network
+
+  traefik:
+    command:
+      - --api.dashboard=false
+      - --ping=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${STACK_NAME}-network
+      - '--providers.docker.constraints=Label(`workshop.stack`,`${STACK_NAME}`)'
+      - --entrypoints.web.address=:80
+      - --accesslog=true
+    ports: !override []
+
+  edc-wallet:
+    labels:
+      - workshop.stack=${STACK_NAME}
+
+  controlplane:
+    labels:
+      - workshop.stack=${STACK_NAME}
+
+  dataplane:
+    labels:
+      - workshop.stack=${STACK_NAME}
