@@ -61,7 +61,7 @@ def main():
     admin = f"http://127.0.0.1:30200/api/issuer/v1beta/participants/{context}"
     key = state["apiKey"]
     configuration = {f"did:web:teilnehmer{n:02}.dataspace-portal.com:participant": {
-        "workpackages": [4, 5], "memberType": "external", "isMember": True,
+        "workpackages": [4, 5], "memberType": "consortium", "isMember": True,
     } for n in range(1, 11)}
     configuration.update({"default": {}, "blackList": []})
     call("POST", admin + "/attestations", key, {

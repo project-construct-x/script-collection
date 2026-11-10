@@ -39,7 +39,7 @@ loopback ports `30100` and `30200`. Vault and PostgreSQL have no host port mappi
 - Attestation: `workshop-members`
 - Participants: `did:web:teilnehmer01.dataspace-portal.com:participant` through
   `did:web:teilnehmer10.dataspace-portal.com:participant`
-- Claims: `workpackages: [4, 5]`, `memberType: external`, `isMember: true`
+- Claims: `workpackages: [4, 5]`, `memberType: consortium`, `isMember: true`
 - Credential lifetime: seven days
 
 The bootstrap does not replace existing definitions or attestations. Inspect

@@ -58,7 +58,7 @@ those steps are performed by `edc start`.
 
 The workshop runs Control Plane and Data Plane `0.17.0-1`, Wallet `0.18.0-2`
 and cloudflared `2026.10.7`. Credentials contain `workpackages: [4, 5]`,
-`memberType: external` and `isMember: true`. These are workshop-only claims,
+`memberType: consortium` and `isMember: true`. These are workshop-only claims,
 not proof of membership in the Construct-X production environment.
 
 Use each tunnel token on exactly one participant deployment. Stop organizer test
