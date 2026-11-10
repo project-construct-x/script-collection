@@ -26,6 +26,7 @@ def request_json(
 ) -> tuple[int, Any]:
     encoded = json.dumps(payload).encode("utf-8") if payload is not None else None
     request_headers = dict(headers or {})
+    request_headers.setdefault("User-Agent", "cx-edc-client/0.1")
     if payload is not None and not any(key.lower() == "content-type" for key in request_headers):
         request_headers["Content-Type"] = "application/json"
     req = request.Request(url, data=encoded, method=method.upper())
@@ -54,7 +55,8 @@ def request_bytes(
     else:
         encoded = payload
     req = request.Request(url, data=encoded, method=method.upper())
-    for key, value in (headers or {}).items():
+    request_headers = {"User-Agent": "cx-edc-client/0.1", **(headers or {})}
+    for key, value in request_headers.items():
         req.add_header(key, value)
     try:
         with request.urlopen(req, timeout=timeout) as response:

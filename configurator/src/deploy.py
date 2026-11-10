@@ -33,7 +33,7 @@ def _compose_file_args(config: ConnectorConfig) -> list[str]:
 
 
 def _wait_for_wallet(config: ConnectorConfig, attempts: int = 60, interval_seconds: float = 2) -> None:
-    url = f"{config.wallet_identity_api}/v1beta/participants/admin"
+    url = f"{config.wallet_identity_api}/v1beta/participants/admin/credentials"
     headers = {"x-api-key": config.wallet_superuser_key}
     for attempt in range(attempts):
         try:

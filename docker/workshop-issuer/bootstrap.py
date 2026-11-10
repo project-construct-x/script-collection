@@ -35,7 +35,7 @@ def main():
     identity = "http://127.0.0.1:30100/api/identity/v1beta/participants"
     for attempt in range(60):
         try:
-            call("GET", identity + "/admin", env["WALLET_SUPERUSER_KEY"])
+            call("GET", identity + "/admin/credentials", env["WALLET_SUPERUSER_KEY"])
             break
         except (RuntimeError, URLError, ConnectionError, TimeoutError):
             if attempt == 59:

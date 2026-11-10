@@ -31,12 +31,14 @@ or load the images supplied by the organizer before starting.
 ```powershell
 edc start -y
 edc status
-edc publish --label Materialdaten --source https://example.org/materialdaten.json
+New-Item -ItemType Directory -Force share
+Copy-Item workshop/materialdaten.json share/materialdaten.json
+edc publish --label Materialdaten --source ./share/materialdaten.json
 edc request --did did:web:teilnehmer02.dataspace-portal.com:participant --endpoint https://teilnehmer02.dataspace-portal.com/dsp/2025-1
 edc stop
 ```
 
-Replace the publish source with a real HTTP(S) resource or a file inside `share/`.
+You can also publish another file inside `share/` or a reachable HTTP(S) resource.
 Downloads are saved under `downloads/`. The tunnel exposes DID, credential,
 issuance, DSP and data-plane routes, but not management or Vault APIs.
 Local secrets are generated on the first `edc start` and retained in `.env`.
@@ -53,3 +55,12 @@ The issuer deployment is in `docker/workshop-issuer/`. Initialize its attestatio
 credential definition and ten holder records before participants request credentials.
 Holder registration does not create the local wallet participant or issue a credential;
 those steps are performed by `edc start`.
+
+The workshop runs Control Plane and Data Plane `0.17.0-1`, Wallet `0.18.0-2`
+and cloudflared `2026.10.7`. Credentials contain `workpackages: [4, 5]`,
+`memberType: external` and `isMember: true`. These are workshop-only claims,
+not proof of membership in the Construct-X production environment.
+
+Use each tunnel token on exactly one participant deployment. Stop organizer test
+deployments before handing over a seat. Otherwise Cloudflare distributes requests
+between both deployments of the same tunnel.

@@ -1,5 +1,8 @@
 # Construct-X EDC Python Library
 
+This is the isolated workshop branch. See [Workshop Deployment](workshop/README.md)
+for the Cloudflare Tunnel setup, assigned participant identities and workshop issuer.
+
 Authors:
 Finn Elbl (felbl@uni-wuppertal.de) - TMDT - University of Wuppertal
 Alexander Paulus (paulus@uni-wuppertal.de) - TMDT - University of Wuppertal
