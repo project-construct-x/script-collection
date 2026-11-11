@@ -40,9 +40,7 @@ def run_request_asset(peer_did: str, peer_dsp: str, asset_id: str = "", asset_in
 
     print("\nRequesting catalog...")
     catalog = client.fetch_catalog(peer_did=peer_did, peer_dsp=peer_dsp)
-    print(catalog)
 
-    print("\nSelect asset:")
     if asset_id:
         try:
             print(f"Auto-selecting asset with id {asset_id}")
@@ -56,6 +54,8 @@ def run_request_asset(peer_did: str, peer_dsp: str, asset_id: str = "", asset_in
         except CatalogError:
             raise SystemExit(f"No matching offer found for asset index: {asset_index}") from None
     else:
+        print(catalog)
+        print("\nSelect asset:")
         if len(catalog) == 0:
             raise SystemExit("Peer catalog is empty; nothing to select.")
         try:

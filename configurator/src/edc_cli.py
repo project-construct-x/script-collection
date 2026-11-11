@@ -214,11 +214,12 @@ def command_send_file(args: argparse.Namespace) -> None:
     config = ConnectorConfig.from_env(ENV_FILE)
     client = ConnectorClient(config)
     catalog = client.fetch_catalog(peer_did=args.did, peer_dsp=args.endpoint)
-    print(catalog)
 
     if args.assetid:
         offer = catalog.select_offer(asset_id=args.assetid)
+        print(offer)
     else:
+        print(catalog)
         if len(catalog) == 0:
             raise RuntimeError("Peer catalog is empty")
         while True:
