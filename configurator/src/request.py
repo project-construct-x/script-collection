@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import mimetypes
 import time
 from typing import Any
 from urllib import parse
@@ -362,7 +363,7 @@ def _extension(content_type: str) -> str:
     normalized = str(content_type or "").split(";", 1)[0].strip().lower()
     if normalized.endswith("+json"):
         return ".json"
-    return {"application/json": ".json", "text/plain": ".txt", "text/html": ".html"}.get(normalized, ".bin")
+    return mimetypes.guess_extension(normalized) or ".bin"
 
 
 def _append_path_and_query(base_url: str, path: str = "", query: dict[str, str] | None = None) -> str:
