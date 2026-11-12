@@ -17,13 +17,15 @@ from config import ConnectorConfig
 from credentials import (
     find_membership_credential,
     list_credentials,
-    request_membership_credential
+    request_membership_credential,
+    wait_for_membership_credential,
 )
-from identity import create_or_reuse_participant, write_participant_secret, wait_for_membership_credential
+from identity import create_or_reuse_participant
 from state import load_state, remember_public_values, save_state
+from vault_seed import write_participant_secret
 
 def initialize_participant(config: ConnectorConfig) -> dict[str, str]:
-    """Create the participant locally and store its client secret in Vault."""
+    """Create the local participant and stage its client secret for the Connector Vault."""
 
     config.validate_local_onboarding()
     state = load_state(config)
@@ -31,8 +33,7 @@ def initialize_participant(config: ConnectorConfig) -> dict[str, str]:
     state.update(participant)
     remember_public_values(config, state)
 
-    # Persist first: Identity Hub only returns the generated secret once. If
-    # Vault is temporarily unavailable, the next run can safely retry the copy.
+    # Identity Hub only returns the generated secret once.
     save_state(config, state)
     write_participant_secret(config, participant["clientSecret"])
 
@@ -52,7 +53,7 @@ def onboard_connector(config: ConnectorConfig, wait_for_credential: bool = True)
     if credential is None:
         result["credentialRequest"] = request_membership_credential(config, participant_api_key)
         if wait_for_credential:
-            credential = wait_for_membership_credential(config)
+            credential = wait_for_membership_credential(config, participant_api_key)
     else:
         result["credentialRequest"] = {"status": "skipped", "reason": "already-present"}
 

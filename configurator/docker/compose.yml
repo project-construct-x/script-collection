@@ -61,40 +61,6 @@ services:
     networks:
       - edc-network
 
-  edc-vault:
-    image: ${VAULT_IMAGE:-ghcr.io/project-construct-x/hashimock:latest}
-    pull_policy: missing
-    restart: unless-stopped
-    environment:
-      HASHIMOCK_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      HASHIMOCK_DATA_DIR: /data/secrets
-    volumes:
-      - vault_data:/data/secrets
-    ports:
-      - "127.0.0.1:${VAULT_PORT:-28200}:8200"
-    networks:
-      - edc-network
-
-  vault-init:
-    image: alpine:3.19
-    depends_on:
-      edc-vault:
-        condition: service_started
-    environment:
-      VAULT_ADDR: http://edc-vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      DP_KEY_PREFIX: dataplane
-      WALLET_AES_ALIAS: participant-wallet-aes-key-alias
-    volumes:
-      - ./docker/vault-init.sh:/scripts/init.sh:ro
-    entrypoint:
-      - sh
-      - -c
-      - apk add --no-cache curl jq openssl && tr -d '\r' < /scripts/init.sh > /tmp/init.sh && sh /tmp/init.sh
-    restart: "no"
-    networks:
-      - edc-network
-
   local-webserver:
     image: nginx:alpine
     volumes:
@@ -105,14 +71,12 @@ services:
 
 
   edc-wallet:
-    image: ${WALLET_IMAGE:-ghcr.io/project-construct-x/wallet:0.18.0-1}
+    image: ${WALLET_IMAGE:?set WALLET_IMAGE in docker/.docker.env}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      vault-init:
-        condition: service_completed_successfully
     environment:
       EDC_HOSTNAME: edc-wallet
       EDC_IAM_DID_WEB_USE_HTTPS: ${WALLET_DID_USE_HTTPS:-true}
@@ -130,9 +94,10 @@ services:
       EDC_DATASOURCE_DEFAULT_URL: jdbc:postgresql://postgres:5432/participant_wallet
       EDC_DATASOURCE_DEFAULT_USER: ${POSTGRES_USER:-admin}
       EDC_DATASOURCE_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      EDC_VAULT_HASHICORP_URL: http://edc-vault:8200
-      EDC_VAULT_HASHICORP_HEALTH_CHECK_ENABLED: "true"
-      EDC_VAULT_HASHICORP_TOKEN: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
+      EDC_SQL_STORE_VAULT_DIRECTORY: /run/secrets
+    secrets:
+      - source: wallet_aes
+        target: participant-wallet-aes-key-alias
     ports:
       - "127.0.0.1:${WALLET_DID_PORT:-20000}:80"
       - "127.0.0.1:${WALLET_IDENTITY_PORT:-20100}:15151"
@@ -156,18 +121,16 @@ services:
       - edc-network
 
   controlplane:
-    image: ${CONTROLPLANE_IMAGE:-con-x-controlplane-postgresql-hashicorp-vault:latest}
+    image: ${CONTROLPLANE_IMAGE:?set CONTROLPLANE_IMAGE in docker/.docker.env}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      vault-init:
-        condition: service_completed_successfully
       edc-wallet:
         condition: service_started
     environment:
-      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
@@ -194,12 +157,11 @@ services:
       edc.datasource.default.url: jdbc:postgresql://postgres:5432/connector_controlplane
       edc.datasource.default.user: ${POSTGRES_USER:-admin}
       edc.datasource.default.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      edc.vault.hashicorp.url: http://edc-vault:8200
-      edc.vault.hashicorp.health.check.enabled: "true"
-      edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      tx.edc.iam.dcp.default-scopes.membership.alias: org.eclipse.dspace.dcp.vc.type
-      tx.edc.iam.dcp.default-scopes.membership.type: MembershipCredential
-      tx.edc.iam.dcp.default-scopes.membership.operation: read
+      edc.abac.defaultcredential: ${MEMBERSHIP_CREDENTIAL_TYPE:?set MEMBERSHIP_CREDENTIAL_TYPE in .env}
+      edc.sql.store.vault.directory: /run/secrets
+    secrets:
+      - source: participant_sts
+        target: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider http://localhost:9000/api/check/readiness || exit 1" ]
       start_period: 15s
@@ -223,7 +185,7 @@ services:
       - edc-network
 
   dataplane:
-    image: ${DATAPLANE_IMAGE:-con-x-dataplane-postgresql-hashicorp-vault:latest}
+    image: ${DATAPLANE_IMAGE:?set DATAPLANE_IMAGE in docker/.docker.env}
     pull_policy: missing
     restart: unless-stopped
     depends_on:
@@ -246,10 +208,12 @@ services:
       edc.sql.schema.autocreate: "true"
       edc.transfer.proxy.token.signer.privatekey.alias: dataplane_priv
       edc.transfer.proxy.token.verifier.publickey.alias: dataplane_pub
-      edc.vault.hashicorp.url: http://edc-vault:8200
-      edc.vault.hashicorp.health.check.enabled: "true"
-      edc.vault.hashicorp.token: ${VAULT_TOKEN:?set VAULT_TOKEN in .env}
-      edc.iam.trustedissuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
+      edc.sql.store.vault.datasource: vault
+      edc.datasource.vault.url: jdbc:postgresql://postgres:5432/connector_controlplane
+      edc.datasource.vault.user: ${POSTGRES_USER:-admin}
+      edc.datasource.vault.password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      edc.sql.store.vault.directory: /run/secrets
+      edc.iam.trusted-issuer.dataspace.id: ${TRUSTED_ISSUER_DID:?set TRUSTED_ISSUER_DID in .env}
       edc.iam.did.web.use.https: ${WALLET_DID_USE_HTTPS:-true}
       edc.iam.sts.oauth.client.secret.alias: ${PARTICIPANT_SECRET_ALIAS:-participantsecret}
       edc.iam.credential.revocation.mimetype: application/json
@@ -258,6 +222,9 @@ services:
       edc.iam.issuer.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
       edc.participant.id: ${PARTICIPANT_DID:?set PARTICIPANT_DID in .env}
       edc.participant.context.id: ${PARTICIPANT_CONTEXT_ID:?set PARTICIPANT_CONTEXT_ID in .env}
+    secrets:
+      - dataplane_priv
+      - dataplane_pub
     entrypoint: [ "java", "-jar", "edc-runtime.jar", "--log-level=DEBUG" ]
     ports:
       - "127.0.0.1:${DATAPLANE_PORT:-29600}:9500"
@@ -270,9 +237,18 @@ services:
     networks:
       - edc-network
 
+secrets:
+  wallet_aes:
+    file: ${VAULT_SEED_DIR:-./.state/participant.vault}/wallet_aes
+  participant_sts:
+    file: ${VAULT_SEED_DIR:-./.state/participant.vault}/participant_sts
+  dataplane_priv:
+    file: ${VAULT_SEED_DIR:-./.state/participant.vault}/dataplane_priv
+  dataplane_pub:
+    file: ${VAULT_SEED_DIR:-./.state/participant.vault}/dataplane_pub
+
 volumes:
   postgres_data:
-  vault_data:
 
 networks:
   edc-network:

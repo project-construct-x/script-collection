@@ -44,13 +44,13 @@ class ConnectorConfig(BaseSettings):
     participant_dataplane_public_url: str = ""
 
     trusted_issuer_did: str = ""
-    membership_credential_definition_id: str = "dev-credential-def-1"
+    membership_credential_definition_id: str = "Con-X-Membership-v0.1"
+    membership_credential_type: str = "https://w3id.org/constructx/credentials/v0.1/MembershipCredential"
 
     wallet_identity_api: str = "http://127.0.0.1:20100/api/identity"
     wallet_superuser_key: str = "YWRtaW4.change-me"
 
-    vault_token: str = "change-me"
-    vault_api: str = ""
+    postgres_password: str = "change-me"
 
     connector_stack_dir: Path = Path(".")
     state_path: Path = Field(
@@ -86,11 +86,6 @@ class ConnectorConfig(BaseSettings):
             self.connector_management_api = (
                 f"https://{self.connector_domain}/management"
             )
-        # VAULT_API
-        if not self.vault_api:
-            self.vault_api = "http://127.0.0.1:28200"
-        self.vault_api = self.vault_api.rstrip("/")
-
         # Checking missing values
         required = {
             "CONNECTOR_DOMAIN": self.connector_domain,
@@ -149,7 +144,7 @@ class ConnectorConfig(BaseSettings):
         values = {
             "TRUSTED_ISSUER_DID": self.trusted_issuer_did,
             "WALLET_SUPERUSER_KEY": self.wallet_superuser_key,
-            "VAULT_TOKEN": self.vault_token,
+            "POSTGRES_PASSWORD": self.postgres_password,
         }
         invalid = [
             name
@@ -158,6 +153,10 @@ class ConnectorConfig(BaseSettings):
         ]
         if invalid:
             raise ValueError(f"[INVALID]: {', '.join(invalid)}")
+
+    @property
+    def vault_seed_dir(self) -> Path:
+        return self.state_path.with_suffix(".vault")
 
     @property
     def dsp_endpoint(self) -> str:

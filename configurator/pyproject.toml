@@ -9,6 +9,7 @@ description = "Python client for Construct-X EDC connector workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography>=44",
     "pydantic>=2.7,<3",
     "pydantic-settings>=2.7,<3",
 ]
@@ -42,6 +43,7 @@ py-modules = [
     "runtime",
     "state",
     "util",
+    "vault_seed",
 ]
 packages = ["flows"]
 

@@ -9,34 +9,24 @@
 # Contributors:
 #   TMDT der Bergischen Universität Wuppertal
 
+import os
 import shutil
 import subprocess
 import time
-from pathlib import Path
 
-from client import ConnectorClient
 from config import ConnectorConfig
 from exceptions import ConnectorError
 from http_client import request_json
-from identity import local_credentials, wait_for_membership_credential
+from onboarding import onboard_connector
+from vault_seed import prepare_vault_seeds, remove_vault_seeds
 
-INFRASTRUCTURE_SERVICES = ("traefik", "postgres", "edc-vault", "vault-init", "edc-wallet", "local-webserver")
+INFRASTRUCTURE_SERVICES = ("traefik", "postgres", "edc-wallet", "local-webserver")
 CONNECTOR_SERVICES = ("controlplane", "dataplane")
 
 ENV_FILE = ".env"
 
-config = ConnectorConfig.from_env(ENV_FILE)
-
-
-def _compose_file_args() -> list[str]:
-    files = ["docker/compose.yml"]
-    if config.use_edge_proxy:
-        files.append("docker/compose.edge.yml")
-    return [argument for path in files for argument in ("-f", path)]
-
-
-def _wait_for_wallet(attempts: int = 60, interval_seconds: float = 2) -> None:
-    url = f"{config.wallet_identity_api}/v1beta/participants"
+def _wait_for_wallet(config: ConnectorConfig, attempts: int = 60, interval_seconds: float = 2) -> None:
+    url = f"{config.wallet_identity_api}/v1beta/participants/admin"
     headers = {"x-api-key": config.wallet_superuser_key}
     for attempt in range(attempts):
         try:
@@ -50,69 +40,56 @@ def _wait_for_wallet(attempts: int = 60, interval_seconds: float = 2) -> None:
     raise RuntimeError("Participant wallet did not become ready")
 
 
-def setup() -> None:
-    client = ConnectorClient(config)
-    start_infrastructure()
+def setup(config: ConnectorConfig | None = None) -> None:
+    config = config or ConnectorConfig.from_env(ENV_FILE)
+    config.validate_local_onboarding()
+    start_infrastructure(config)
     print("Waiting...", "infrastructure startup")
-    _wait_for_wallet()
-    onboarding = client.bootstrap_participant()
+    _wait_for_wallet(config)
+    onboarding = onboard_connector(config)
     print("Onboarding", onboarding)
 
-    credentials = local_credentials(config)
-    if not credentials:
-        print("Obtaining membership credentials...")
-        client.request_membership_credential()
-        credentials = wait_for_membership_credential(config)
-
-    print(
-        "Wallet credentials",
-        [
-            {
-                "issuerId": credential.get("issuerId"),
-                "holderId": credential.get("holderId"),
-                "credentialObjectId": (credential.get("metadata") or {}).get("credentialObjectId"),
-                "rawVcPresent": bool((credential.get("verifiableCredential") or {}).get("rawVc")),
-            }
-            for credential in credentials
-        ],
-    )
-
-    start_connector()
+    start_connector(config)
 
 
-def start_infrastructure() -> None:
-    _start_services(config.connector_stack_dir, INFRASTRUCTURE_SERVICES)
+def start_infrastructure(config: ConnectorConfig | None = None) -> None:
+    config = config or ConnectorConfig.from_env(ENV_FILE)
+    prepare_vault_seeds(config)
+    _start_services(config, INFRASTRUCTURE_SERVICES)
 
 
-def start_connector() -> None:
-    _start_services(config.connector_stack_dir, CONNECTOR_SERVICES)
+def start_connector(config: ConnectorConfig | None = None) -> None:
+    config = config or ConnectorConfig.from_env(ENV_FILE)
+    _start_services(config, CONNECTOR_SERVICES)
 
 
-def stop(remove_state: bool = False) -> None:
-    _stop_services(config.connector_stack_dir, remove_state=remove_state)
+def stop(remove_state: bool = False, config: ConnectorConfig | None = None) -> None:
+    config = config or ConnectorConfig.from_env(ENV_FILE)
+    _stop_services(config, remove_state=remove_state)
+    if remove_state:
+        remove_vault_seeds(config)
+        config.state_path.unlink(missing_ok=True)
 
 
-def _start_services(compose_dir: str | Path, services: tuple[str, ...]) -> None:
+def _start_services(config: ConnectorConfig, services: tuple[str, ...]) -> None:
     if not services:
         raise ValueError("At least one Docker Compose service is required.")
-    selected_dir = Path(compose_dir)
-
-    docker_path = shutil.which("docker") or "docker"
-    subprocess.run(
-        [docker_path, "compose", "--project-directory", ".", *_compose_file_args(), "--env-file", ".env",
-         "--env-file", "docker/.docker.env", "up", "-d", "--remove-orphans", *services],
-        cwd=selected_dir,
-        check=True,
-    )
+    _run_compose(config, "up", "-d", "--remove-orphans", *services)
 
 
-def _stop_services(compose_dir: str | Path, remove_state: bool = False) -> None:
-    selected_dir = Path(compose_dir)
+def _stop_services(config: ConnectorConfig, remove_state: bool = False) -> None:
     print(f"Stopping services {'and volumes' if remove_state else ''}")
-    docker_path = shutil.which("docker") or "docker"
+    _run_compose(config, "down", *(["-v"] if remove_state else []), "--remove-orphans")
+
+
+def _run_compose(config: ConnectorConfig, *args: str) -> None:
+    command = [shutil.which("docker") or "docker", "compose", "--project-directory", ".", "-f", "docker/compose.yml"]
+    if config.use_edge_proxy:
+        command += ["-f", "docker/compose.edge.yml"]
+    command += ["--env-file", ENV_FILE, "--env-file", "docker/.docker.env", *args]
     subprocess.run(
-        [docker_path, "compose", "--project-directory", ".", *_compose_file_args(), "--env-file", ".env",
-         "--env-file", "docker/.docker.env", "down", *(["-v"] if remove_state else []), "--remove-orphans"],
-        cwd=selected_dir,
+        command,
+        cwd=config.connector_stack_dir,
+        env=dict(os.environ, VAULT_SEED_DIR=str(config.vault_seed_dir)),
         check=True,
     )

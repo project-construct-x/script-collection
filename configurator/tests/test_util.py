@@ -19,7 +19,7 @@ def write_valid_config(env_file):
                 "TRUSTED_ISSUER_DID=did:web:issuer.test.local:issuer",
                 "WALLET_IDENTITY_API=http://127.0.0.1:20100/api/identity",
                 "WALLET_SUPERUSER_KEY=YWRtaW4.test-token",
-                "VAULT_TOKEN=test-vault-token",
+                "POSTGRES_PASSWORD=test-db-password",
                 "CONNECTOR_MANAGEMENT_API_KEY=test-management-api-key",
                 "PARTICIPANT_DSP_CALLBACK_ADDRESS=https://connector.test.local/dsp",
                 "PARTICIPANT_DATAPLANE_PUBLIC_URL=https://connector.test.local/public",

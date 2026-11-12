@@ -51,32 +51,19 @@ Use `pip install -e ".[dev]"` when developing or running the tests.
 
 ### Runtime Images
 
-`edc start` uses the image references in `docker/.docker.env`. The Python
-library does not build Docker images. The bundled configuration was tested
-with Construct-X Wallet `0.18.0-1`, HashiMock, and the Control Plane and Data
-Plane built from `constructx-edc` commit
-`021daa740a74c4456a4a02782b88bbce0203247d`.
+`edc start` pulls missing runtime images from GitHub Container Registry (GHCR),
+using the references in `docker/.docker.env`. The defaults use the Construct-X
+Control Plane and Data Plane `0.17.0-1` and Wallet `0.18.0-2`, all with
+PostgreSQL Vault.
 
-**Note:** The Control Plane and Data Plane images currently need to be built
-locally before starting the connector. The versioned image names in
-`docker/.docker.env` refer to local images, not published registry images.
+Authenticate with GHCR if needed:
 
-To build the matching planes on a host with Docker and the required JDK:
-
-```bash
-git clone https://github.com/project-construct-x/constructx-edc.git
-cd constructx-edc
-git checkout 021daa740a74c4456a4a02782b88bbce0203247d
-./gradlew \
-  :edc-controlplane:edc-controlplane-construct-x:con-x-controlplane-postgresql-hashicorp-vault:dockerize \
-  :edc-dataplane:edc-dataplane-construct-x:con-x-dataplane-postgresql-hashicorp-vault:dockerize
-docker tag con-x-controlplane-postgresql-hashicorp-vault:latest con-x-controlplane-postgresql-hashicorp-vault:0.13.0-021daa74
-docker tag con-x-dataplane-postgresql-hashicorp-vault:latest con-x-dataplane-postgresql-hashicorp-vault:0.13.0-021daa74
+```sh
+docker login ghcr.io
 ```
 
-The images must be available on the Docker host running the connector. Access
-to the Wallet and HashiMock images may require a GHCR login. Operating an
-existing connector through its Management API does not require local images.
+Operating an existing connector through its Management API does not require
+local images.
 
 ### Configuration
 Create the runtime environment file from the shipped example
@@ -85,6 +72,9 @@ cp .env.example .env
 ```
 
 Adjust the contained values _before_ starting the connector.
+
+The example targets the Construct-X Prod issuer and its
+`Con-X-Membership-v0.1` credential definition.
 
 Important settings include:
 
@@ -118,14 +108,12 @@ The following settings should be changed to random secrets
 
 | Variable                       | Format           | Comment                         |
 |--------------------------------|------------------|---------------------------------|
-| `PARTICIPANT_SECRET_ALIAS`     | <random>         |                                 |
 | `POSTGRES_PASSWORD`            | <random>         | Database password               |
 | `WALLET_SUPERUSER_KEY`         | YWRtaW4.<random> | Local wallet administration key |
-| `VAULT_TOKEN`                  | <random>         | Local Vault token               |
 | `CONNECTOR_MANAGEMENT_API_KEY` | <random>         | Control Plane API Key           |
 
 Relative paths are resolved against the current working directory. Connector
-settings are validated when the configuration is loaded. Wallet, Vault, and
+settings are validated when the configuration is loaded. Database, wallet, and
 trusted issuer settings are validated only when local onboarding is started.
 
 Run `edc config` to create or update the common connector settings
@@ -161,24 +149,25 @@ edc status
 
 Afterwards, use `edc publish`, `edc request`, and `edc send-file` as described
 below. Do not run `edc start`; that command starts the bundled local deployment
-and requires the local wallet, Vault, and trusted issuer configuration.
+and requires the local deployment settings.
 
 ## Connector Lifecycle
 
-The bundled local deployment is provided through Docker containers. It uses the
-Construct-X Vault Mock as a lightweight implementation of the HashiCorp Vault
-API for development and demonstrations. Secrets are stored in a persistent
-Docker volume and survive normal container and server restarts. Production
-deployments should use a properly secured secret-management system.
+The SQL Vault imports startup keys from Docker Compose secrets and stores them
+in PostgreSQL. The Wallet uses its own database, and both planes share the
+Connector Vault. The startup key files are kept beside the participant state.
+Keep these files and database backups private.
+
+For a previous HashiMock deployment, use a new stack with fresh volumes and
+participant state, or plan a separate migration of the existing secrets.
 
 #### Startup
 
 The startup phase consists of these operations:
 
-1. Start Traefik, PostgreSQL, Vault, the Vault initialization job, and the
-   participant wallet;
+1. Prepare the SQL Vault startup keys and start Traefik, PostgreSQL, and the participant wallet;
 2. Create or reuse the participant context;
-3. Store the participant client secret in Vault;
+3. Prepare the participant client secret for the Connector Vault;
 4. Reuse an existing membership credential or request one from the trusted
    issuer;
 5. Wait for the credential;
@@ -294,7 +283,7 @@ Stop the connector stack:
 edc stop
 ```
 
-> **Warning:** `edc stop --remove` deletes the local connector state (`.state/participant.json`) an all databases, as well as the vault. The connector must be onboarded again before it can participate in data exchange.
+> **Warning:** `edc stop --remove` deletes the local connector state, the startup key files, and all databases, including the SQL Vault. The connector must be onboarded again before it can participate in data exchange.
 
 ## Python Library Usage
 

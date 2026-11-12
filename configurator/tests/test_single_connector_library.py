@@ -92,10 +92,11 @@ def test_initialize_participant_controls_only_local_components(monkeypatch, tmp_
         participant_did="did:web:connector.test:participant",
         participant_context_id="participant",
         trusted_issuer_did="did:web:issuer.test:issuer",
+        membership_credential_definition_id="dev-credential-def-1",
         participant_credential_service_url="https://connector.test/api/credentials/participant",
         participant_issuer_service_url="https://connector.test/api/issuance/participant",
         wallet_superuser_key="YWRtaW4.test-key",
-        vault_token="test-vault-token",
+        postgres_password="test-db-password",
         connector_management_api_key="test-management-key",
         state_path=state_path,
     )
@@ -149,7 +150,7 @@ def test_onboard_requests_and_waits_for_membership_credential(monkeypatch, tmp_p
     )
     monkeypatch.setattr(
         "onboarding.wait_for_membership_credential",
-        lambda selected_config, attempts=12: (
+        lambda selected_config, key: (
                 calls.append("wait")
                 or {
                     "issuerId": selected_config.trusted_issuer_did,

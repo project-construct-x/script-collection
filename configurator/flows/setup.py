@@ -53,20 +53,12 @@ SETTINGS = (
         prompt="Trusted issuer DID",
     ),
     EnvSetting(
-        name="ISSUER_CONTEXT",
-        prompt="Trusted issuer context",
-    ),
-    EnvSetting(
-        name="TRUSTED_ISSUER_CREDENTIAL_SERVICE_URL",
-        prompt="Trusted issuer credential service URL",
-    ),
-    EnvSetting(
-        name="TRUSTED_ISSUER_ISSUANCE_SERVICE_URL",
-        prompt="Trusted issuer issuance service URL",
-    ),
-    EnvSetting(
         name="MEMBERSHIP_CREDENTIAL_DEFINITION_ID",
         prompt="Membership credential definition ID",
+    ),
+    EnvSetting(
+        name="MEMBERSHIP_CREDENTIAL_TYPE",
+        prompt="Membership credential type",
     ),
     EnvSetting(
         name="CONNECTOR_MANAGEMENT_API_KEY",
